@@ -128,20 +128,40 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(apiKey);
     const model = gateway("google/gemini-3-flash-preview");
 
-    const { object } = await generateObject({
-      model,
-      schema: ExtractionSchema,
-      maxOutputTokens: 8192,
-      system:
-        "You are a senior business analyst turning raw meeting notes into a PRD. " +
-        "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
-        "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
-        "If a section has no relevant content, return an empty array or empty string (never null). " +
-        "For every decision include source_note_id using the exact id shown in the NOTE header. " +
-        "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.",
-      prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the best possible PRD plus a list of decisions. Do your best even if notes are sparse, informal, or noisy.`,
-    });
-    const output: Extraction = object;
+    const systemPrompt =
+      "You are a senior business analyst turning raw meeting notes into a PRD. " +
+      "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
+      "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
+      "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, user_stories, acceptance_criteria, risks, assumptions, open_questions, decisions. " +
+      "Use strings for summaries and arrays of strings for lists. If a section has no relevant content, return an empty array or empty string (never null). " +
+      "For every decision include title, description, confidence, and source_note_id using the exact id shown in the NOTE header. " +
+      "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.";
+
+    let output: Extraction;
+    try {
+      const { object } = await generateObject({
+        model,
+        schema: RawExtractionSchema,
+        maxOutputTokens: 8192,
+        system: systemPrompt,
+        prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the best possible PRD plus a list of decisions. Do your best even if notes are sparse, informal, or noisy.`,
+      });
+      output = normalizeExtraction(object);
+    } catch (error) {
+      console.error("Structured PRD extraction failed, retrying as JSON text", error);
+      try {
+        const { text } = await generateText({
+          model,
+          maxOutputTokens: 8192,
+          system: systemPrompt,
+          prompt: `Project: ${project.name}\n\nMeeting notes:\n${notesPayload}\n\nReturn only the JSON object. No markdown, no commentary.`,
+        });
+        output = normalizeExtraction(RawExtractionSchema.parse(parseJsonObject(text)));
+      } catch (fallbackError) {
+        console.error("PRD extraction retry failed", fallbackError);
+        return { prdId: null, decisionsCount: 0, error: "I couldn't turn these notes into a PRD yet. Try selecting fewer or more detailed notes." };
+      }
+    }
 
     // Persist PRD
     const { data: prd, error: prdErr } = await supabase
