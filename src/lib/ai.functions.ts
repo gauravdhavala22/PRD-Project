@@ -18,12 +18,14 @@ const ExtractionSchema = z.object({
     z.object({
       title: z.string(),
       description: z.string(),
-      decision_date: z.string().nullable().optional(),
+      decision_date: z.string().optional(),
       confidence: z.number().min(0).max(1),
       source_note_id: z.string(),
     }),
   ),
 });
+
+type Extraction = z.infer<typeof ExtractionSchema>;
 
 export const generatePrdFromNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
