@@ -16,7 +16,7 @@ import { Route as AuthenticatedDecisionsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
-import { Route as AuthenticatedProjectsProjectIdPrdPrdIdRouteImport } from './routes/_authenticated/projects.$projectId.prd.$prdId'
+import { Route as AuthenticatedProjectsProjectIdPrdPrdIdRouteImport } from './routes/_authenticated/projects.$projectId_.prd.$prdId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -56,9 +56,9 @@ const AuthenticatedProjectsProjectIdRoute =
   } as any)
 const AuthenticatedProjectsProjectIdPrdPrdIdRoute =
   AuthenticatedProjectsProjectIdPrdPrdIdRouteImport.update({
-    id: '/prd/$prdId',
-    path: '/prd/$prdId',
-    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+    id: '/projects/$projectId_/prd/$prdId',
+    path: '/projects/$projectId/prd/$prdId',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -66,7 +66,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/decisions': typeof AuthenticatedDecisionsRoute
-  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/projects/$projectId/prd/$prdId': typeof AuthenticatedProjectsProjectIdPrdPrdIdRoute
 }
@@ -75,7 +75,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/decisions': typeof AuthenticatedDecisionsRoute
-  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/projects/$projectId/prd/$prdId': typeof AuthenticatedProjectsProjectIdPrdPrdIdRoute
 }
@@ -86,9 +86,9 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/decisions': typeof AuthenticatedDecisionsRoute
-  '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
-  '/_authenticated/projects/$projectId/prd/$prdId': typeof AuthenticatedProjectsProjectIdPrdPrdIdRoute
+  '/_authenticated/projects/$projectId_/prd/$prdId': typeof AuthenticatedProjectsProjectIdPrdPrdIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,7 +118,7 @@ export interface FileRouteTypes {
     | '/_authenticated/decisions'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/projects/'
-    | '/_authenticated/projects/$projectId/prd/$prdId'
+    | '/_authenticated/projects/$projectId_/prd/$prdId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -178,44 +178,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/projects/$projectId/prd/$prdId': {
-      id: '/_authenticated/projects/$projectId/prd/$prdId'
-      path: '/prd/$prdId'
+    '/_authenticated/projects/$projectId_/prd/$prdId': {
+      id: '/_authenticated/projects/$projectId_/prd/$prdId'
+      path: '/projects/$projectId/prd/$prdId'
       fullPath: '/projects/$projectId/prd/$prdId'
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdPrdPrdIdRouteImport
-      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
-interface AuthenticatedProjectsProjectIdRouteChildren {
-  AuthenticatedProjectsProjectIdPrdPrdIdRoute: typeof AuthenticatedProjectsProjectIdPrdPrdIdRoute
-}
-
-const AuthenticatedProjectsProjectIdRouteChildren: AuthenticatedProjectsProjectIdRouteChildren =
-  {
-    AuthenticatedProjectsProjectIdPrdPrdIdRoute:
-      AuthenticatedProjectsProjectIdPrdPrdIdRoute,
-  }
-
-const AuthenticatedProjectsProjectIdRouteWithChildren =
-  AuthenticatedProjectsProjectIdRoute._addFileChildren(
-    AuthenticatedProjectsProjectIdRouteChildren,
-  )
-
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDecisionsRoute: typeof AuthenticatedDecisionsRoute
-  AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
+  AuthenticatedProjectsProjectIdPrdPrdIdRoute: typeof AuthenticatedProjectsProjectIdPrdPrdIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDecisionsRoute: AuthenticatedDecisionsRoute,
-  AuthenticatedProjectsProjectIdRoute:
-    AuthenticatedProjectsProjectIdRouteWithChildren,
+  AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
+  AuthenticatedProjectsProjectIdPrdPrdIdRoute:
+    AuthenticatedProjectsProjectIdPrdPrdIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -229,3 +216,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
