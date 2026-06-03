@@ -66,21 +66,20 @@ const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extracti
   assumptions: toTextArray(raw.assumptions),
   open_questions: toTextArray(raw.open_questions),
   decisions: Array.isArray(raw.decisions)
-    ? raw.decisions
-        .map((item) => {
+    ? raw.decisions.reduce<Extraction["decisions"]>((acc, item) => {
           const decision = item as Record<string, unknown>;
           const title = toText(decision.title) || toText(decision.description);
-          if (!title) return null;
+          if (!title) return acc;
           const confidence = Number(decision.confidence);
-          return {
+          acc.push({
             title,
             description: toText(decision.description),
             decision_date: toText(decision.decision_date) || undefined,
             confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
             source_note_id: toText(decision.source_note_id),
-          };
-        })
-        .filter((item): item is Extraction["decisions"][number] => item !== null)
+          });
+          return acc;
+        }, [])
     : [],
 });
 
