@@ -205,5 +205,5 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       await supabase.from("decisions").insert(decisionRows);
     }
 
-    return { prdId: prd.id, decisionsCount: output.decisions.length };
+    return { prdId: prd.id, decisionsCount: output.decisions.length, error: null };
   });
