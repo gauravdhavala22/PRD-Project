@@ -64,13 +64,16 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(apiKey);
     const model = gateway("google/gemini-3-flash-preview");
 
-    const { experimental_output: output } = await generateText({
+    const { object: output } = await generateObject<Extraction>({
       model,
-      experimental_output: Output.object({ schema: ExtractionSchema }),
+      schema: ExtractionSchema,
+      mode: "json",
+      maxOutputTokens: 8192,
       system:
         "You are a senior business analyst. From meeting notes, extract structured PRD content. " +
         "For every decision include the source_note_id (use the exact id shown in the NOTE header). " +
-        "Be concise but specific. Confidence reflects how clearly the decision is stated (0-1).",
+        "Be concise but specific. Confidence reflects how clearly the decision is stated (0-1). " +
+        "Always return all fields; use empty arrays [] or empty strings instead of null. Omit decision_date if unknown.",
       prompt: `Project: ${project.name}\n\nMeeting notes:\n${notesPayload}\n\nProduce a complete PRD plus a list of decisions extracted from these notes.`,
     });
 
