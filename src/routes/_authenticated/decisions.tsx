@@ -13,8 +13,10 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Pencil, Trash2, Download } from "lucide-react";
+import { Check, Pencil, Trash2, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { syncAllDriveFolders } from "@/lib/drive.functions";
 
 type Decision = {
   id: string;
