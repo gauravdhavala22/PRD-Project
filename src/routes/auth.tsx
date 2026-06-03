@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
@@ -24,51 +22,24 @@ function AuthPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/dashboard", replace: true });
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) navigate({ to: "/dashboard", replace: true });
-    });
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const signIn = async (e: React.FormEvent) => {
+  // Auth bypass: accept any email/password, sign in anonymously.
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setErrorMsg(error.message);
-      toast.error(error.message);
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      await supabase.auth.signInAnonymously();
     }
-  };
-
-  const signUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg(null);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: fullName },
-      },
-    });
     setLoading(false);
-    if (error) {
-      setErrorMsg(error.message);
-      toast.error(error.message);
-    } else {
-      toast.success("Account created. Check your email to confirm.");
-    }
+    navigate({ to: "/dashboard", replace: true });
   };
 
   return (
@@ -83,55 +54,36 @@ function AuthPage() {
         <Card>
           <CardHeader>
             <CardTitle>Welcome</CardTitle>
-            <CardDescription>Sign in to turn meeting notes into PRDs.</CardDescription>
+            <CardDescription>
+              Login is bypassed for now — enter anything to continue.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" onValueChange={() => setErrorMsg(null)}>
-              {errorMsg && (
-                <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {errorMsg}
-                </div>
-              )}
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign in</TabsTrigger>
-                <TabsTrigger value="signup">Sign up</TabsTrigger>
-              </TabsList>
-              <TabsContent value="signin">
-                <form onSubmit={signIn} className="space-y-3 mt-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="si-email">Email</Label>
-                    <Input id="si-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="si-pw">Password</Label>
-                    <Input id="si-pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Signing in..." : "Sign in"}
-                  </Button>
-                </form>
-              </TabsContent>
-              <TabsContent value="signup">
-                <form onSubmit={signUp} className="space-y-3 mt-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="su-name">Full name</Label>
-                    <Input id="su-name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="su-email">Email</Label>
-                    <Input id="su-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="su-pw">Password</Label>
-                    <Input id="su-pw" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Use a strong, unique password (8+ chars). Common passwords like "123456" or "Gaurav@123" are rejected.</p>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Creating..." : "Create account"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pw">Password</Label>
+                <Input
+                  id="pw"
+                  type="password"
+                  placeholder="anything works"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Continuing..." : "Continue"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
