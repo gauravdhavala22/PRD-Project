@@ -27,9 +27,13 @@ function ProjectDetail() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openAdd, setOpenAdd] = useState(false);
+  const [openImport, setOpenImport] = useState(false);
+  const [pickedDocs, setPickedDocs] = useState<Set<string>>(new Set());
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const generateFn = useServerFn(generatePrdFromNotes);
+  const listDocsFn = useServerFn(listDocsInFolder);
+  const importFn = useServerFn(importDriveDocs);
 
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
