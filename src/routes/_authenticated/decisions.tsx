@@ -13,8 +13,10 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Pencil, Trash2, Download } from "lucide-react";
+import { Check, Pencil, Trash2, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { syncAllDriveFolders } from "@/lib/drive.functions";
 
 type Decision = {
   id: string;
@@ -97,6 +99,26 @@ function DecisionsPage() {
 
   const projectName = projects?.find((p) => p.id === projectId)?.name;
 
+  const syncFn = useServerFn(syncAllDriveFolders);
+  const sync = useMutation({
+    mutationFn: async () => syncFn({ data: undefined as never }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["decisions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
+      const parts = [
+        `${res.projectsScanned} project${res.projectsScanned === 1 ? "" : "s"} scanned`,
+        `${res.notesImported} new note${res.notesImported === 1 ? "" : "s"}`,
+        `${res.decisionsCreated} decision${res.decisionsCreated === 1 ? "" : "s"} added`,
+      ];
+      toast.success(parts.join(" · "));
+      if (res.errors.length > 0) {
+        toast.warning(`${res.errors.length} issue${res.errors.length === 1 ? "" : "s"}: ${res.errors[0]}`);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const downloadCsv = () => {
     if (!decisions || decisions.length === 0) {
       toast.error("No decisions to export");
@@ -137,6 +159,15 @@ function DecisionsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+            {sync.isPending ? "Syncing…" : "Sync now"}
+          </Button>
           <Button variant="outline" size="sm" onClick={downloadCsv}>
             <Download className="h-4 w-4 mr-1" /> Download CSV
           </Button>
