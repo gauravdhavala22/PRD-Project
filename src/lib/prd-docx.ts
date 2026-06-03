@@ -162,5 +162,12 @@ export async function downloadPrdAsDocx(title: string, content: PrdContent) {
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `${title.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_")}.docx`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${title.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_")}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
