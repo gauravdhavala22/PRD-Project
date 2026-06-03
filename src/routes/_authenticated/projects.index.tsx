@@ -73,12 +73,14 @@ function ProjectsPage() {
     <div className="p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground">Group meeting notes by initiative.</p>
+          <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+            Projects
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Group meeting notes by initiative.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" /> New project</Button>
+            <Button className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 text-white border-0 shadow-lg shadow-violet-500/20"><Plus className="h-4 w-4 mr-1" /> New project</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
