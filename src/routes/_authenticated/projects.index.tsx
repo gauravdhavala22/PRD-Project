@@ -80,7 +80,7 @@ function ProjectsPage() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 text-white border-0 shadow-lg shadow-violet-500/20"><Plus className="h-4 w-4 mr-1" /> New project</Button>
+            <Button className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:opacity-90 text-white border-0 shadow-lg shadow-violet-400/20"><Plus className="h-4 w-4 mr-1" /> New project</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -159,12 +159,12 @@ function ProjectsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects?.map((p, i) => {
             const gradients = [
-              "from-indigo-500 to-violet-500",
-              "from-sky-500 to-cyan-500",
-              "from-amber-500 to-rose-500",
-              "from-emerald-500 to-teal-500",
-              "from-fuchsia-500 to-pink-500",
-              "from-violet-500 to-purple-500",
+              "from-indigo-400 to-violet-400",
+              "from-sky-400 to-cyan-400",
+              "from-amber-400 to-rose-400",
+              "from-emerald-400 to-teal-400",
+              "from-fuchsia-400 to-pink-400",
+              "from-violet-400 to-purple-400",
             ];
             const g = gradients[i % gradients.length];
             return (
