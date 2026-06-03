@@ -123,7 +123,8 @@ function AuthPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="su-pw">Password</Label>
-                    <Input id="su-pw" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <Input id="su-pw" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Use a strong, unique password (8+ chars). Common passwords like "123456" or "Gaurav@123" are rejected.</p>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Creating..." : "Create account"}
