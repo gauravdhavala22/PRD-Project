@@ -72,7 +72,7 @@ function PrdViewer() {
     mutationFn: async () => {
       const { error } = await supabase
         .from("prds")
-        .update({ title, content: content as object, status, updated_at: new Date().toISOString() })
+        .update({ title, content: content as unknown as Record<string, unknown>, status, updated_at: new Date().toISOString() })
         .eq("id", prdId);
       if (error) throw error;
     },
