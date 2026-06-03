@@ -161,14 +161,13 @@ function DecisionsPage() {
             <Card key={d.id}>
               <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0">
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base">{d.title}</CardTitle>
+                  <CardTitle className="text-lg font-semibold bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent">
+                    {d.title}
+                  </CardTitle>
                   <div className="flex flex-wrap gap-2 mt-1.5">
                     <Badge variant={d.status === "approved" ? "default" : "secondary"}>{d.status}</Badge>
                     <Badge variant="outline">conf {(d.confidence * 100).toFixed(0)}%</Badge>
                     {d.decision_date && <Badge variant="outline">{d.decision_date}</Badge>}
-                    {d.meeting_note_id && notesMap?.[d.meeting_note_id] && (
-                      <Badge variant="outline">source: {notesMap[d.meeting_note_id]}</Badge>
-                    )}
                   </div>
                 </div>
                 <div className="flex gap-1">
@@ -185,7 +184,16 @@ function DecisionsPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">{d.description}</p></CardContent>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{d.description}</p>
+                {d.meeting_note_id && notesMap?.[d.meeting_note_id] && (
+                  <div className="mt-4 pt-3 border-t flex items-center gap-2">
+                    <Badge variant="outline" className="bg-muted/50">
+                      source: {notesMap[d.meeting_note_id]}
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
             </Card>
           ))}
         </div>
