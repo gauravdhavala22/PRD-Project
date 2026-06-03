@@ -64,7 +64,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(apiKey);
     const model = gateway("google/gemini-3-flash-preview");
 
-    const { object: output } = await generateObject<Extraction>({
+    const { object } = await generateObject({
       model,
       schema: ExtractionSchema,
       mode: "json",
