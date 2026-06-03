@@ -89,16 +89,16 @@ function Dashboard() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 items-stretch">
           {stats.map((s) => (
             <Link
               key={s.label}
               to={s.to}
-              className="group block focus:outline-none"
+              className="group block focus:outline-none h-full"
             >
               <Card
                 className={cn(
-                  "relative overflow-hidden border-transparent ring-1 transition-all duration-300",
+                  "relative overflow-hidden border-transparent ring-1 transition-all duration-300 h-full flex flex-col",
                   "hover:-translate-y-0.5 hover:shadow-xl",
                   s.ring,
                 )}
@@ -113,21 +113,22 @@ function Dashboard() {
                   )}
                   style={{ mixBlendMode: "overlay" }}
                 />
-                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 gap-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground truncate">
                     {s.label}
                   </CardTitle>
-                  <div className={cn("h-9 w-9 rounded-lg grid place-items-center", s.iconBg)}>
+                  <div className={cn("h-9 w-9 shrink-0 rounded-lg grid place-items-center", s.iconBg)}>
                     <s.icon className="h-4 w-4" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold tracking-tight">{s.value}</div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{s.hint}</span>
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <CardContent className="flex-1 flex flex-col justify-between">
+                  <div className="text-4xl font-bold tracking-tight leading-none">{s.value}</div>
+                  <div className="mt-4 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="truncate">{s.hint}</span>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </CardContent>
+
               </Card>
             </Link>
           ))}
