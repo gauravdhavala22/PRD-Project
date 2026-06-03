@@ -16,7 +16,7 @@ import {
 import { Check, Pencil, Trash2, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { syncAllDriveFolders } from "@/lib/drive.functions";
+import { listSyncableProjects, syncProjectDrive } from "@/lib/drive.functions";
 
 type Decision = {
   id: string;
@@ -99,9 +99,26 @@ function DecisionsPage() {
 
   const projectName = projects?.find((p) => p.id === projectId)?.name;
 
-  const syncFn = useServerFn(syncAllDriveFolders);
+  const listProjectsFn = useServerFn(listSyncableProjects);
+  const syncOneFn = useServerFn(syncProjectDrive);
   const sync = useMutation({
-    mutationFn: async () => syncFn({ data: undefined as never }),
+    mutationFn: async () => {
+      const { projects: list } = await listProjectsFn({ data: undefined as never });
+      let notesImported = 0;
+      let decisionsCreated = 0;
+      const errors: string[] = [];
+      for (const p of list) {
+        try {
+          const res = await syncOneFn({ data: { projectId: p.id } });
+          notesImported += res.notesImported;
+          decisionsCreated += res.decisionsCreated;
+          for (const e of res.errors) errors.push(`${p.name}: ${e}`);
+        } catch (err) {
+          errors.push(`${p.name}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      return { projectsScanned: list.length, notesImported, decisionsCreated, errors };
+    },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["decisions"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
