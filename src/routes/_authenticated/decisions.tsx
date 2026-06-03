@@ -159,6 +159,15 @@ function DecisionsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+            {sync.isPending ? "Syncing…" : "Sync now"}
+          </Button>
           <Button variant="outline" size="sm" onClick={downloadCsv}>
             <Download className="h-4 w-4 mr-1" /> Download CSV
           </Button>
