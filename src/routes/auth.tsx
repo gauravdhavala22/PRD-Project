@@ -26,6 +26,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -40,14 +41,19 @@ function AuthPage() {
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) toast.error(error.message);
+    if (error) {
+      setErrorMsg(error.message);
+      toast.error(error.message);
+    }
   };
 
   const signUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -57,8 +63,12 @@ function AuthPage() {
       },
     });
     setLoading(false);
-    if (error) toast.error(error.message);
-    else toast.success("Account created. Check your email to confirm.");
+    if (error) {
+      setErrorMsg(error.message);
+      toast.error(error.message);
+    } else {
+      toast.success("Account created. Check your email to confirm.");
+    }
   };
 
   return (
@@ -76,7 +86,12 @@ function AuthPage() {
             <CardDescription>Sign in to turn meeting notes into PRDs.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin">
+            <Tabs defaultValue="signin" onValueChange={() => setErrorMsg(null)}>
+              {errorMsg && (
+                <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {errorMsg}
+                </div>
+              )}
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign in</TabsTrigger>
                 <TabsTrigger value="signup">Sign up</TabsTrigger>
@@ -108,7 +123,8 @@ function AuthPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="su-pw">Password</Label>
-                    <Input id="su-pw" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <Input id="su-pw" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Use a strong, unique password (8+ chars). Common passwords like "123456" or "Gaurav@123" are rejected.</p>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Creating..." : "Create account"}
