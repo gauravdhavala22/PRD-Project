@@ -97,6 +97,34 @@ function DecisionsPage() {
 
   const projectName = projects?.find((p) => p.id === projectId)?.name;
 
+  const downloadCsv = () => {
+    if (!decisions || decisions.length === 0) {
+      toast.error("No decisions to export");
+      return;
+    }
+    const headers = ["Title", "Description", "Status", "Confidence", "Decision Date", "Source Note"];
+    const escape = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = decisions.map((d) => [
+      d.title,
+      d.description,
+      d.status,
+      `${(d.confidence * 100).toFixed(0)}%`,
+      d.decision_date ?? "",
+      (d.meeting_note_id && notesMap?.[d.meeting_note_id]) || "",
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `decision-log-${projectName ?? "all"}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-8 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
@@ -106,14 +134,19 @@ function DecisionsPage() {
             {projectName ? `Project: ${projectName}` : "All projects"}
           </p>
         </div>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={downloadCsv}>
+            <Download className="h-4 w-4 mr-1" /> Download CSV
+          </Button>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {decisions && decisions.length === 0 ? (
