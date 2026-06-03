@@ -188,6 +188,9 @@ async function extractDecisionsFromNote(
         "A decision is a choice that was made (not an open question, action item, or idea). " +
         "Return JSON with key 'decisions' as an array. Each decision has: title (short), description (1-2 sentences), " +
         "optional decision_date (YYYY-MM-DD if explicitly mentioned), confidence (0-1 based on how clearly stated). " +
+        "IMPORTANT: Whenever the notes mention specific people (decision-maker, owner, attendees who agreed, person responsible), " +
+        "include their full names in the description (e.g. 'John Smith decided…', 'Agreed by Jane Doe and Alex Kim'). " +
+        "Use the exact names as written in the notes. If no person is named for a decision, omit names rather than guessing. " +
         "If no decisions are present, return an empty array.",
       prompt: `Note title: ${noteTitle}\n\nNote content:\n${noteContent.slice(0, 12000)}`,
     });
