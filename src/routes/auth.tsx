@@ -26,6 +26,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -40,14 +41,19 @@ function AuthPage() {
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) toast.error(error.message);
+    if (error) {
+      setErrorMsg(error.message);
+      toast.error(error.message);
+    }
   };
 
   const signUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -57,8 +63,12 @@ function AuthPage() {
       },
     });
     setLoading(false);
-    if (error) toast.error(error.message);
-    else toast.success("Account created. Check your email to confirm.");
+    if (error) {
+      setErrorMsg(error.message);
+      toast.error(error.message);
+    } else {
+      toast.success("Account created. Check your email to confirm.");
+    }
   };
 
   return (
