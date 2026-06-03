@@ -1,33 +1,96 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
-const ExtractionSchema = z.object({
-  executive_summary: z.string().default(""),
-  problem_statement: z.string().default(""),
-  business_goals: z.array(z.string()).default([]),
-  functional_requirements: z.array(z.string()).default([]),
-  user_stories: z.array(z.string()).default([]),
-  acceptance_criteria: z.array(z.string()).default([]),
-  risks: z.array(z.string()).default([]),
-  assumptions: z.array(z.string()).default([]),
-  open_questions: z.array(z.string()).default([]),
-  decisions: z
-    .array(
-      z.object({
-        title: z.string(),
-        description: z.string().default(""),
-        decision_date: z.string().optional(),
-        confidence: z.number().min(0).max(1).default(0.5),
-        source_note_id: z.string().default(""),
-      }),
-    )
-    .default([]),
+const RawExtractionSchema = z.object({
+  executive_summary: z.unknown().optional(),
+  problem_statement: z.unknown().optional(),
+  business_goals: z.unknown().optional(),
+  functional_requirements: z.unknown().optional(),
+  user_stories: z.unknown().optional(),
+  acceptance_criteria: z.unknown().optional(),
+  risks: z.unknown().optional(),
+  assumptions: z.unknown().optional(),
+  open_questions: z.unknown().optional(),
+  decisions: z.unknown().optional(),
 });
 
-type Extraction = z.infer<typeof ExtractionSchema>;
+type Extraction = {
+  executive_summary: string;
+  problem_statement: string;
+  business_goals: string[];
+  functional_requirements: string[];
+  user_stories: string[];
+  acceptance_criteria: string[];
+  risks: string[];
+  assumptions: string[];
+  open_questions: string[];
+  decisions: Array<{
+    title: string;
+    description: string;
+    decision_date?: string;
+    confidence: number;
+    source_note_id: string;
+  }>;
+};
+
+const toText = (value: unknown) => {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+};
+
+const toTextArray = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : toText((item as { title?: unknown; description?: unknown })?.title) || toText((item as { description?: unknown })?.description)))
+      .map((item) => item.replace(/^[-*•\d.)\s]+/, "").trim())
+      .filter(Boolean);
+  }
+  const text = toText(value);
+  return text
+    ? text.split(/\n|;/).map((item) => item.replace(/^[-*•\d.)\s]+/, "").trim()).filter(Boolean)
+    : [];
+};
+
+const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extraction => ({
+  executive_summary: toText(raw.executive_summary),
+  problem_statement: toText(raw.problem_statement),
+  business_goals: toTextArray(raw.business_goals),
+  functional_requirements: toTextArray(raw.functional_requirements),
+  user_stories: toTextArray(raw.user_stories),
+  acceptance_criteria: toTextArray(raw.acceptance_criteria),
+  risks: toTextArray(raw.risks),
+  assumptions: toTextArray(raw.assumptions),
+  open_questions: toTextArray(raw.open_questions),
+  decisions: Array.isArray(raw.decisions)
+    ? raw.decisions
+        .map((item) => {
+          const decision = item as Record<string, unknown>;
+          const title = toText(decision.title) || toText(decision.description);
+          if (!title) return null;
+          const confidence = Number(decision.confidence);
+          return {
+            title,
+            description: toText(decision.description),
+            decision_date: toText(decision.decision_date) || undefined,
+            confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
+            source_note_id: toText(decision.source_note_id),
+          };
+        })
+        .filter((item): item is Extraction["decisions"][number] => item !== null)
+    : [],
+});
+
+const parseJsonObject = (text: string) => {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) throw new Error("AI response was not valid JSON");
+  return JSON.parse(cleaned.slice(start, end + 1));
+};
 
 export const generatePrdFromNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
