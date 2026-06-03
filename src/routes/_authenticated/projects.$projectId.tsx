@@ -12,9 +12,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, FileText, Sparkles, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, FileText, Sparkles, Trash2, ArrowLeft, Folder, Download } from "lucide-react";
 import { toast } from "sonner";
 import { generatePrdFromNotes } from "@/lib/ai.functions";
+import { listDocsInFolder, importDriveDocs } from "@/lib/drive.functions";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   component: ProjectDetail,
