@@ -187,15 +187,15 @@ function ProjectDetail() {
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" /> Import from Drive</Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent className="max-w-2xl flex flex-col max-h-[85vh]">
                     <DialogHeader>
                       <DialogTitle>Import from Google Drive</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 min-h-0 flex flex-col">
                       <p className="text-xs text-muted-foreground">
                         Google Docs in <span className="font-medium">{project.drive_folder_name}</span>.
                       </p>
-                      <div className="max-h-80 overflow-y-auto rounded-md border divide-y">
+                      <div className="flex-1 min-h-0 overflow-y-auto rounded-md border divide-y">
                         {driveDocs.isLoading ? (
                           <div className="p-4 text-sm text-muted-foreground">Loading documents…</div>
                         ) : driveDocs.error ? (
