@@ -98,6 +98,9 @@ function PrdViewer() {
       <div className="flex items-start gap-4 mb-6">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-xl font-semibold" />
         <Button onClick={() => save.mutate()} disabled={save.isPending}>Save</Button>
+        <Button variant="outline" onClick={() => content && downloadPrdAsDocx(title, content)}>
+          <Download className="h-4 w-4 mr-1" /> Download
+        </Button>
       </div>
 
       {sources.length > 0 && (
