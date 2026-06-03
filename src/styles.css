@@ -141,8 +141,8 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     background-image:
-      radial-gradient(ellipse 80% 50% at 0% 0%, oklch(0.9 0.08 280 / 0.35), transparent 60%),
-      radial-gradient(ellipse 60% 50% at 100% 0%, oklch(0.9 0.08 220 / 0.3), transparent 60%);
+      radial-gradient(ellipse 80% 50% at 0% 0%, oklch(0.95 0.05 280 / 0.2), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 100% 0%, oklch(0.95 0.05 220 / 0.15), transparent 60%);
     background-attachment: fixed;
   }
 }

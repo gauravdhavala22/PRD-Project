@@ -129,7 +129,7 @@ function DecisionsPage() {
     <div className="p-8 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-amber-600 via-rose-600 to-fuchsia-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent">
             Decision Log
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
