@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,8 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, FolderKanban } from "lucide-react";
+import { Plus, FolderKanban, Folder, Search } from "lucide-react";
 import { toast } from "sonner";
+import { listDriveFolders } from "@/lib/drive.functions";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   component: ProjectsPage,
@@ -22,17 +24,27 @@ function ProjectsPage() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [folderName, setFolderName] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const listFolders = useServerFn(listDriveFolders);
 
   const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, name, description, created_at")
+        .select("id, name, description, created_at, drive_folder_name")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
+  });
+
+  const folders = useQuery({
+    queryKey: ["drive-folders", search],
+    queryFn: () => listFolders({ data: { search } }),
+    enabled: open,
   });
 
   const createProject = useMutation({
@@ -43,13 +55,15 @@ function ProjectsPage() {
         user_id: u.user.id,
         name: name.trim(),
         description: description.trim() || null,
+        drive_folder_id: folderId,
+        drive_folder_name: folderName,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Project created");
       setOpen(false);
-      setName(""); setDescription("");
+      setName(""); setDescription(""); setFolderId(null); setFolderName(null); setSearch("");
       qc.invalidateQueries({ queryKey: ["projects"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -66,10 +80,10 @@ function ProjectsPage() {
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-1" /> New project</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>New project</DialogTitle>
-              <DialogDescription>Give your project a name. You can add meeting notes next.</DialogDescription>
+              <DialogDescription>Name your project and optionally link a Google Drive folder.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1.5">
@@ -79,6 +93,48 @@ function ProjectsPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="p-desc">Description (optional)</Label>
                 <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Google Drive folder (optional)</Label>
+                <div className="relative">
+                  <Search className="h-4 w-4 absolute left-2 top-2.5 text-muted-foreground" />
+                  <Input
+                    className="pl-8"
+                    placeholder="Search your Drive folders..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
+                  {folders.isLoading ? (
+                    <div className="p-3 text-xs text-muted-foreground">Loading folders…</div>
+                  ) : folders.error ? (
+                    <div className="p-3 text-xs text-destructive">{(folders.error as Error).message}</div>
+                  ) : (folders.data?.folders.length ?? 0) === 0 ? (
+                    <div className="p-3 text-xs text-muted-foreground">No folders found.</div>
+                  ) : (
+                    folders.data!.folders.map((f) => {
+                      const selected = folderId === f.id;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => {
+                            if (selected) { setFolderId(null); setFolderName(null); }
+                            else { setFolderId(f.id); setFolderName(f.name); }
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-accent ${selected ? "bg-accent" : ""}`}
+                        >
+                          <Folder className="h-4 w-4 text-muted-foreground" />
+                          <span className="truncate">{f.name}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                {folderName && (
+                  <p className="text-xs text-muted-foreground">Selected: <span className="font-medium">{folderName}</span></p>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -106,6 +162,11 @@ function ProjectsPage() {
                   <h3 className="font-medium">{p.name}</h3>
                   {p.description && (
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.description}</p>
+                  )}
+                  {p.drive_folder_name && (
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <Folder className="h-3 w-3" /> {p.drive_folder_name}
+                    </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-3">
                     {new Date(p.created_at).toLocaleDateString()}
