@@ -61,7 +61,8 @@ export const listDocsInFolder = createServerFn({ method: "POST" })
     );
     const fields = encodeURIComponent("files(id,name,modifiedTime)");
     const res = await driveGet(
-      `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc`,
+      `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc` +
+        `&includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives`,
     );
     if (!res.ok) {
       throw new Error(`Drive list docs failed (${res.status}): ${await res.text()}`);
