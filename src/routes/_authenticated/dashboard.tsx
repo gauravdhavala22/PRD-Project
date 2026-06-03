@@ -31,9 +31,9 @@ function Dashboard() {
       icon: FolderKanban,
       to: "/projects" as const,
       search: undefined,
-      gradient: "from-indigo-500 to-violet-500",
-      ring: "ring-indigo-500/20",
-      iconBg: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
+      gradient: "from-indigo-400 to-violet-400",
+      ring: "ring-indigo-400/20",
+      iconBg: "bg-indigo-400/15 text-indigo-500 dark:text-indigo-400",
       hint: "Browse all projects",
     },
     {
@@ -42,9 +42,9 @@ function Dashboard() {
       icon: FileText,
       to: "/projects" as const,
       search: undefined,
-      gradient: "from-sky-500 to-cyan-500",
-      ring: "ring-sky-500/20",
-      iconBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+      gradient: "from-sky-400 to-cyan-400",
+      ring: "ring-sky-400/20",
+      iconBg: "bg-sky-400/15 text-sky-500 dark:text-sky-400",
       hint: "Open a project to view its PRDs",
     },
     {
@@ -53,9 +53,9 @@ function Dashboard() {
       icon: GitCommit,
       to: "/decisions" as const,
       search: undefined,
-      gradient: "from-amber-500 to-rose-500",
-      ring: "ring-amber-500/20",
-      iconBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+      gradient: "from-amber-400 to-rose-400",
+      ring: "ring-amber-400/20",
+      iconBg: "bg-amber-400/15 text-amber-500 dark:text-amber-400",
       hint: "Review pending decisions",
     },
   ];
@@ -75,14 +75,14 @@ function Dashboard() {
       <div className="p-8 max-w-6xl">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-sky-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 bg-clip-text text-transparent">
               Dashboard
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               Overview of your projects and PRDs.
             </p>
           </div>
-          <Button asChild className="shadow-lg shadow-indigo-500/20 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 text-white border-0">
+          <Button asChild className="shadow-lg shadow-indigo-400/20 bg-gradient-to-r from-indigo-500 to-violet-500 hover:opacity-90 text-white border-0">
             <Link to="/projects">
               <Plus className="h-4 w-4 mr-1" /> New project
             </Link>
@@ -159,7 +159,7 @@ function Dashboard() {
                       className="py-3 px-2 -mx-2 rounded-md flex items-center justify-between group hover:bg-accent/60 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-8 w-8 rounded-md bg-gradient-to-br from-indigo-500 to-violet-500 text-white grid place-items-center text-xs font-semibold shadow-sm">
+                        <div className="h-8 w-8 rounded-md bg-gradient-to-br from-indigo-400 to-violet-400 text-white grid place-items-center text-xs font-semibold shadow-sm">
                           {p.name.slice(0, 1).toUpperCase()}
                         </div>
                         <span className="text-sm font-medium truncate group-hover:text-foreground">
