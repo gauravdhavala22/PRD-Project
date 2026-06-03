@@ -67,7 +67,6 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
     const { object } = await generateObject({
       model,
       schema: ExtractionSchema,
-      mode: "json",
       maxOutputTokens: 8192,
       system:
         "You are a senior business analyst. From meeting notes, extract structured PRD content. " +
@@ -76,6 +75,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
         "Always return all fields; use empty arrays [] or empty strings instead of null. Omit decision_date if unknown.",
       prompt: `Project: ${project.name}\n\nMeeting notes:\n${notesPayload}\n\nProduce a complete PRD plus a list of decisions extracted from these notes.`,
     });
+    const output: Extraction = object;
 
     // Persist PRD
     const { data: prd, error: prdErr } = await supabase
