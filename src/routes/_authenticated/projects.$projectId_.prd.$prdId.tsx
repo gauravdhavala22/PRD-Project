@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { downloadPrdAsDocx } from "@/lib/prd-docx";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId_/prd/$prdId")({
   component: PrdViewer,
