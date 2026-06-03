@@ -35,7 +35,7 @@ function Landing() {
             </div>
             <span className="font-semibold">BA AI Assistant</span>
           </div>
-          <Button asChild size="sm"><Link to="/auth">Sign in</Link></Button>
+          <Button asChild size="sm"><Link to="/dashboard">Open app</Link></Button>
         </div>
       </header>
       <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
@@ -47,7 +47,7 @@ function Landing() {
           risks, and decisions from meeting notes — automatically.
         </p>
         <div className="mt-8 flex gap-3 justify-center">
-          <Button asChild size="lg"><Link to="/auth">Get started</Link></Button>
+          <Button asChild size="lg"><Link to="/dashboard">Get started</Link></Button>
         </div>
       </section>
       <section className="max-w-5xl mx-auto px-6 pb-24 grid md:grid-cols-3 gap-6">
