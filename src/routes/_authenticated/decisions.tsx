@@ -161,7 +161,7 @@ function DecisionsPage() {
             <Card key={d.id}>
               <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0">
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg font-semibold bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent">
+                  <CardTitle className="tracking-tight text-lg font-semibold bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-slate-700 bg-slate-800">
                     {d.title}
                   </CardTitle>
                   <div className="flex flex-wrap gap-2 mt-1.5">
