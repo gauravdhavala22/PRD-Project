@@ -1,7 +1,5 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, FolderKanban, GitCommit, LogOut, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Link, useLocation } from "@tanstack/react-router";
+import { LayoutDashboard, FolderKanban, GitCommit, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -13,12 +11,6 @@ const navItems = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth" });
-  };
 
   return (
     <div className="flex min-h-screen bg-background">
