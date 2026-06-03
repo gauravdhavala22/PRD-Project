@@ -10,7 +10,7 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/projects/$projectId/prd/$prdId")({
+export const Route = createFileRoute("/_authenticated/projects/$projectId_/prd/$prdId")({
   component: PrdViewer,
 });
 
