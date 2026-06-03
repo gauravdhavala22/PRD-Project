@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { downloadPrdAsDocx } from "@/lib/prd-docx";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId_/prd/$prdId")({
   component: PrdViewer,
@@ -97,6 +98,9 @@ function PrdViewer() {
       <div className="flex items-start gap-4 mb-6">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-xl font-semibold" />
         <Button onClick={() => save.mutate()} disabled={save.isPending}>Save</Button>
+        <Button variant="outline" onClick={() => content && downloadPrdAsDocx(title, content)}>
+          <Download className="h-4 w-4 mr-1" /> Download
+        </Button>
       </div>
 
       {sources.length > 0 && (
