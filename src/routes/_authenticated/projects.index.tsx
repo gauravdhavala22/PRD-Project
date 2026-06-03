@@ -73,12 +73,14 @@ function ProjectsPage() {
     <div className="p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground">Group meeting notes by initiative.</p>
+          <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+            Projects
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Group meeting notes by initiative.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" /> New project</Button>
+            <Button className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 text-white border-0 shadow-lg shadow-violet-500/20"><Plus className="h-4 w-4 mr-1" /> New project</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -155,26 +157,45 @@ function ProjectsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects?.map((p) => (
-            <Link key={p.id} to="/projects/$projectId" params={{ projectId: p.id }}>
-              <Card className="hover:border-primary transition">
-                <CardContent className="p-5">
-                  <h3 className="font-medium">{p.name}</h3>
-                  {p.description && (
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.description}</p>
-                  )}
-                  {p.drive_folder_name && (
-                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                      <Folder className="h-3 w-3" /> {p.drive_folder_name}
+          {projects?.map((p, i) => {
+            const gradients = [
+              "from-indigo-500 to-violet-500",
+              "from-sky-500 to-cyan-500",
+              "from-amber-500 to-rose-500",
+              "from-emerald-500 to-teal-500",
+              "from-fuchsia-500 to-pink-500",
+              "from-violet-500 to-purple-500",
+            ];
+            const g = gradients[i % gradients.length];
+            return (
+              <Link key={p.id} to="/projects/$projectId" params={{ projectId: p.id }} className="group">
+                <Card className="relative overflow-hidden border-transparent ring-1 ring-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:ring-violet-500/30">
+                  <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${g}`} />
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${g} text-white grid place-items-center font-semibold shadow-sm shrink-0`}>
+                        {p.name.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium truncate group-hover:text-foreground">{p.name}</h3>
+                        {p.description && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    {p.drive_folder_name && (
+                      <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                        <Folder className="h-3 w-3" /> {p.drive_folder_name}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {new Date(p.created_at).toLocaleDateString()}
                     </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-3">
-                    {new Date(p.created_at).toLocaleDateString()}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
