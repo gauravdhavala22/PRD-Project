@@ -5,24 +5,26 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
 const ExtractionSchema = z.object({
-  executive_summary: z.string(),
-  problem_statement: z.string(),
-  business_goals: z.array(z.string()),
-  functional_requirements: z.array(z.string()),
-  user_stories: z.array(z.string()),
-  acceptance_criteria: z.array(z.string()),
-  risks: z.array(z.string()),
-  assumptions: z.array(z.string()),
-  open_questions: z.array(z.string()),
-  decisions: z.array(
-    z.object({
-      title: z.string(),
-      description: z.string(),
-      decision_date: z.string().optional(),
-      confidence: z.number().min(0).max(1),
-      source_note_id: z.string(),
-    }),
-  ),
+  executive_summary: z.string().default(""),
+  problem_statement: z.string().default(""),
+  business_goals: z.array(z.string()).default([]),
+  functional_requirements: z.array(z.string()).default([]),
+  user_stories: z.array(z.string()).default([]),
+  acceptance_criteria: z.array(z.string()).default([]),
+  risks: z.array(z.string()).default([]),
+  assumptions: z.array(z.string()).default([]),
+  open_questions: z.array(z.string()).default([]),
+  decisions: z
+    .array(
+      z.object({
+        title: z.string(),
+        description: z.string().default(""),
+        decision_date: z.string().optional(),
+        confidence: z.number().min(0).max(1).default(0.5),
+        source_note_id: z.string().default(""),
+      }),
+    )
+    .default([]),
 });
 
 type Extraction = z.infer<typeof ExtractionSchema>;
@@ -69,11 +71,13 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       schema: ExtractionSchema,
       maxOutputTokens: 8192,
       system:
-        "You are a senior business analyst. From meeting notes, extract structured PRD content. " +
-        "For every decision include the source_note_id (use the exact id shown in the NOTE header). " +
-        "Be concise but specific. Confidence reflects how clearly the decision is stated (0-1). " +
-        "Always return all fields; use empty arrays [] or empty strings instead of null. Omit decision_date if unknown.",
-      prompt: `Project: ${project.name}\n\nMeeting notes:\n${notesPayload}\n\nProduce a complete PRD plus a list of decisions extracted from these notes.`,
+        "You are a senior business analyst turning raw meeting notes into a PRD. " +
+        "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
+        "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
+        "If a section has no relevant content, return an empty array or empty string (never null). " +
+        "For every decision include source_note_id using the exact id shown in the NOTE header. " +
+        "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.",
+      prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the best possible PRD plus a list of decisions. Do your best even if notes are sparse, informal, or noisy.`,
     });
     const output: Extraction = object;
 
