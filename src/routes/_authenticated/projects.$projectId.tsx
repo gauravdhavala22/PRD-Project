@@ -173,36 +173,91 @@ function ProjectDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Meeting notes</CardTitle>
-            <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Add note</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader><DialogTitle>Add meeting note</DialogTitle></DialogHeader>
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="n-title">Title</Label>
-                    <Input id="n-title" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="Kickoff meeting 2026-06-01" />
+            <div>
+              <CardTitle className="text-base">Meeting notes</CardTitle>
+              {project?.drive_folder_name && (
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Folder className="h-3 w-3" /> {project.drive_folder_name}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {project?.drive_folder_id && (
+                <Dialog open={openImport} onOpenChange={(o) => { setOpenImport(o); if (!o) setPickedDocs(new Set()); }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline"><Download className="h-4 w-4 mr-1" /> Import from Drive</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Import from Google Drive</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Google Docs in <span className="font-medium">{project.drive_folder_name}</span>.
+                      </p>
+                      <div className="max-h-80 overflow-y-auto rounded-md border divide-y">
+                        {driveDocs.isLoading ? (
+                          <div className="p-4 text-sm text-muted-foreground">Loading documents…</div>
+                        ) : driveDocs.error ? (
+                          <div className="p-4 text-sm text-destructive">{(driveDocs.error as Error).message}</div>
+                        ) : (driveDocs.data?.docs.length ?? 0) === 0 ? (
+                          <div className="p-4 text-sm text-muted-foreground">No Google Docs in this folder.</div>
+                        ) : (
+                          driveDocs.data!.docs.map((d) => (
+                            <label key={d.id} className="flex items-center gap-2 px-3 py-2 hover:bg-accent cursor-pointer">
+                              <Checkbox checked={pickedDocs.has(d.id)} onCheckedChange={() => toggleDoc(d.id)} />
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm truncate">{d.name}</div>
+                                {d.modifiedTime && (
+                                  <div className="text-[11px] text-muted-foreground">
+                                    {new Date(d.modifiedTime).toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={() => importDocs.mutate()} disabled={pickedDocs.size === 0 || importDocs.isPending}>
+                        {importDocs.isPending ? "Importing..." : `Import ${pickedDocs.size || ""}`}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+              <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Add note</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader><DialogTitle>Add meeting note</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="n-title">Title</Label>
+                      <Input id="n-title" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="Kickoff meeting 2026-06-01" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="n-content">Notes content</Label>
+                      <Textarea
+                        id="n-content"
+                        rows={14}
+                        value={noteContent}
+                        onChange={(e) => setNoteContent(e.target.value)}
+                        placeholder="Paste meeting notes here..."
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="n-content">Notes content</Label>
-                    <Textarea
-                      id="n-content"
-                      rows={14}
-                      value={noteContent}
-                      onChange={(e) => setNoteContent(e.target.value)}
-                      placeholder="Paste meeting notes here..."
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={() => addNote.mutate()} disabled={!noteTitle.trim() || !noteContent.trim() || addNote.isPending}>
-                    Save
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button onClick={() => addNote.mutate()} disabled={!noteTitle.trim() || !noteContent.trim() || addNote.isPending}>
+                      Save
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             {notes && notes.length === 0 ? (
