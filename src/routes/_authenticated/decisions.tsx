@@ -16,7 +16,7 @@ import {
 import { Check, Pencil, Trash2, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { syncAllDriveFolders } from "@/lib/drive.functions";
+import { listSyncableProjects, syncProjectDrive } from "@/lib/drive.functions";
 
 type Decision = {
   id: string;
