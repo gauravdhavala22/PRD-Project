@@ -86,7 +86,12 @@ function AuthPage() {
             <CardDescription>Sign in to turn meeting notes into PRDs.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin">
+            <Tabs defaultValue="signin" onValueChange={() => setErrorMsg(null)}>
+              {errorMsg && (
+                <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {errorMsg}
+                </div>
+              )}
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign in</TabsTrigger>
                 <TabsTrigger value="signup">Sign up</TabsTrigger>
