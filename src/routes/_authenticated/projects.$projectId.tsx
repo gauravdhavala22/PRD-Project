@@ -114,10 +114,36 @@ function ProjectDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const driveDocs = useQuery({
+    queryKey: ["drive-docs", project?.drive_folder_id],
+    queryFn: () => listDocsFn({ data: { folderId: project!.drive_folder_id! } }),
+    enabled: openImport && !!project?.drive_folder_id,
+  });
+
+  const importDocs = useMutation({
+    mutationFn: async () => {
+      const docs = (driveDocs.data?.docs ?? []).filter((d) => pickedDocs.has(d.id));
+      if (docs.length === 0) throw new Error("Pick at least one document");
+      return await importFn({ data: { projectId, docs } });
+    },
+    onSuccess: (res) => {
+      toast.success(`Imported ${res.imported} doc(s)${res.skipped ? ` · ${res.skipped} skipped (already imported)` : ""}`);
+      setOpenImport(false);
+      setPickedDocs(new Set());
+      qc.invalidateQueries({ queryKey: ["notes", projectId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const toggle = (id: string) => {
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
+  };
+  const toggleDoc = (id: string) => {
+    const next = new Set(pickedDocs);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setPickedDocs(next);
   };
 
   return (
