@@ -5,24 +5,26 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
 const ExtractionSchema = z.object({
-  executive_summary: z.string(),
-  problem_statement: z.string(),
-  business_goals: z.array(z.string()),
-  functional_requirements: z.array(z.string()),
-  user_stories: z.array(z.string()),
-  acceptance_criteria: z.array(z.string()),
-  risks: z.array(z.string()),
-  assumptions: z.array(z.string()),
-  open_questions: z.array(z.string()),
-  decisions: z.array(
-    z.object({
-      title: z.string(),
-      description: z.string(),
-      decision_date: z.string().optional(),
-      confidence: z.number().min(0).max(1),
-      source_note_id: z.string(),
-    }),
-  ),
+  executive_summary: z.string().default(""),
+  problem_statement: z.string().default(""),
+  business_goals: z.array(z.string()).default([]),
+  functional_requirements: z.array(z.string()).default([]),
+  user_stories: z.array(z.string()).default([]),
+  acceptance_criteria: z.array(z.string()).default([]),
+  risks: z.array(z.string()).default([]),
+  assumptions: z.array(z.string()).default([]),
+  open_questions: z.array(z.string()).default([]),
+  decisions: z
+    .array(
+      z.object({
+        title: z.string(),
+        description: z.string().default(""),
+        decision_date: z.string().optional(),
+        confidence: z.number().min(0).max(1).default(0.5),
+        source_note_id: z.string().default(""),
+      }),
+    )
+    .default([]),
 });
 
 type Extraction = z.infer<typeof ExtractionSchema>;
