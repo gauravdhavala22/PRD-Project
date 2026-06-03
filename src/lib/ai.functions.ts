@@ -1,33 +1,95 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
-const ExtractionSchema = z.object({
-  executive_summary: z.string().default(""),
-  problem_statement: z.string().default(""),
-  business_goals: z.array(z.string()).default([]),
-  functional_requirements: z.array(z.string()).default([]),
-  user_stories: z.array(z.string()).default([]),
-  acceptance_criteria: z.array(z.string()).default([]),
-  risks: z.array(z.string()).default([]),
-  assumptions: z.array(z.string()).default([]),
-  open_questions: z.array(z.string()).default([]),
-  decisions: z
-    .array(
-      z.object({
-        title: z.string(),
-        description: z.string().default(""),
-        decision_date: z.string().optional(),
-        confidence: z.number().min(0).max(1).default(0.5),
-        source_note_id: z.string().default(""),
-      }),
-    )
-    .default([]),
+const RawExtractionSchema = z.object({
+  executive_summary: z.unknown().optional(),
+  problem_statement: z.unknown().optional(),
+  business_goals: z.unknown().optional(),
+  functional_requirements: z.unknown().optional(),
+  user_stories: z.unknown().optional(),
+  acceptance_criteria: z.unknown().optional(),
+  risks: z.unknown().optional(),
+  assumptions: z.unknown().optional(),
+  open_questions: z.unknown().optional(),
+  decisions: z.unknown().optional(),
 });
 
-type Extraction = z.infer<typeof ExtractionSchema>;
+type Extraction = {
+  executive_summary: string;
+  problem_statement: string;
+  business_goals: string[];
+  functional_requirements: string[];
+  user_stories: string[];
+  acceptance_criteria: string[];
+  risks: string[];
+  assumptions: string[];
+  open_questions: string[];
+  decisions: Array<{
+    title: string;
+    description: string;
+    decision_date?: string;
+    confidence: number;
+    source_note_id: string;
+  }>;
+};
+
+const toText = (value: unknown) => {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+};
+
+const toTextArray = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : toText((item as { title?: unknown; description?: unknown })?.title) || toText((item as { description?: unknown })?.description)))
+      .map((item) => item.replace(/^[-*•\d.)\s]+/, "").trim())
+      .filter(Boolean);
+  }
+  const text = toText(value);
+  return text
+    ? text.split(/\n|;/).map((item) => item.replace(/^[-*•\d.)\s]+/, "").trim()).filter(Boolean)
+    : [];
+};
+
+const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extraction => ({
+  executive_summary: toText(raw.executive_summary),
+  problem_statement: toText(raw.problem_statement),
+  business_goals: toTextArray(raw.business_goals),
+  functional_requirements: toTextArray(raw.functional_requirements),
+  user_stories: toTextArray(raw.user_stories),
+  acceptance_criteria: toTextArray(raw.acceptance_criteria),
+  risks: toTextArray(raw.risks),
+  assumptions: toTextArray(raw.assumptions),
+  open_questions: toTextArray(raw.open_questions),
+  decisions: Array.isArray(raw.decisions)
+    ? raw.decisions.reduce<Extraction["decisions"]>((acc, item) => {
+          const decision = item as Record<string, unknown>;
+          const title = toText(decision.title) || toText(decision.description);
+          if (!title) return acc;
+          const confidence = Number(decision.confidence);
+          acc.push({
+            title,
+            description: toText(decision.description),
+            decision_date: toText(decision.decision_date) || undefined,
+            confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
+            source_note_id: toText(decision.source_note_id),
+          });
+          return acc;
+        }, [])
+    : [],
+});
+
+const parseJsonObject = (text: string) => {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) throw new Error("AI response was not valid JSON");
+  return JSON.parse(cleaned.slice(start, end + 1));
+};
 
 export const generatePrdFromNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -66,20 +128,40 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(apiKey);
     const model = gateway("google/gemini-3-flash-preview");
 
-    const { object } = await generateObject({
-      model,
-      schema: ExtractionSchema,
-      maxOutputTokens: 8192,
-      system:
-        "You are a senior business analyst turning raw meeting notes into a PRD. " +
-        "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
-        "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
-        "If a section has no relevant content, return an empty array or empty string (never null). " +
-        "For every decision include source_note_id using the exact id shown in the NOTE header. " +
-        "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.",
-      prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the best possible PRD plus a list of decisions. Do your best even if notes are sparse, informal, or noisy.`,
-    });
-    const output: Extraction = object;
+    const systemPrompt =
+      "You are a senior business analyst turning raw meeting notes into a PRD. " +
+      "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
+      "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
+      "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, user_stories, acceptance_criteria, risks, assumptions, open_questions, decisions. " +
+      "Use strings for summaries and arrays of strings for lists. If a section has no relevant content, return an empty array or empty string (never null). " +
+      "For every decision include title, description, confidence, and source_note_id using the exact id shown in the NOTE header. " +
+      "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.";
+
+    let output: Extraction;
+    try {
+      const { object } = await generateObject({
+        model,
+        schema: RawExtractionSchema,
+        maxOutputTokens: 8192,
+        system: systemPrompt,
+        prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the best possible PRD plus a list of decisions. Do your best even if notes are sparse, informal, or noisy.`,
+      });
+      output = normalizeExtraction(object);
+    } catch (error) {
+      console.error("Structured PRD extraction failed, retrying as JSON text", error);
+      try {
+        const { text } = await generateText({
+          model,
+          maxOutputTokens: 8192,
+          system: systemPrompt,
+          prompt: `Project: ${project.name}\n\nMeeting notes:\n${notesPayload}\n\nReturn only the JSON object. No markdown, no commentary.`,
+        });
+        output = normalizeExtraction(RawExtractionSchema.parse(parseJsonObject(text)));
+      } catch (fallbackError) {
+        console.error("PRD extraction retry failed", fallbackError);
+        return { prdId: null, decisionsCount: 0, error: "I couldn't turn these notes into a PRD yet. Try selecting fewer or more detailed notes." };
+      }
+    }
 
     // Persist PRD
     const { data: prd, error: prdErr } = await supabase
@@ -123,5 +205,5 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       await supabase.from("decisions").insert(decisionRows);
     }
 
-    return { prdId: prd.id, decisionsCount: output.decisions.length };
+    return { prdId: prd.id, decisionsCount: output.decisions.length, error: null };
   });

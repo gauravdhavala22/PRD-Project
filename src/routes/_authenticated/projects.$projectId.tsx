@@ -106,6 +106,10 @@ function ProjectDetail() {
       return await generateFn({ data: { projectId, noteIds: ids } });
     },
     onSuccess: (res) => {
+      if (res.error || !res.prdId) {
+        toast.error(res.error || "PRD generation failed");
+        return;
+      }
       toast.success(`PRD generated · ${res.decisionsCount} decision(s) extracted`);
       qc.invalidateQueries({ queryKey: ["prds", projectId] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
