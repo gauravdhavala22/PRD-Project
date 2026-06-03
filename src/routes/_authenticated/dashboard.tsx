@@ -159,7 +159,7 @@ function Dashboard() {
                       className="py-3 px-2 -mx-2 rounded-md flex items-center justify-between group hover:bg-accent/60 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-8 w-8 rounded-md bg-gradient-to-br from-indigo-500 to-violet-500 text-white grid place-items-center text-xs font-semibold shadow-sm">
+                        <div className="h-8 w-8 rounded-md bg-gradient-to-br from-indigo-400 to-violet-400 text-white grid place-items-center text-xs font-semibold shadow-sm">
                           {p.name.slice(0, 1).toUpperCase()}
                         </div>
                         <span className="text-sm font-medium truncate group-hover:text-foreground">
