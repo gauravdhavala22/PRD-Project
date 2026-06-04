@@ -1,8 +1,11 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, FolderKanban, GitCommit, Sparkles, LogOut } from "lucide-react";
+import { LayoutDashboard, FolderKanban, GitCommit, Sparkles, LogOut, HardDrive, CheckCircle2, Unlink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import type { ReactNode } from "react";
+import { lovable } from "@/integrations/lovable";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -10,13 +13,71 @@ const navItems = [
   { to: "/decisions", label: "Decision Log", icon: GitCommit },
 ];
 
+const DRIVE_SCOPES = "openid email profile https://www.googleapis.com/auth/drive.readonly";
+
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const { data: driveConnected } = useQuery({
+    queryKey: ["drive-connected"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return false;
+      const { data } = await supabase
+        .from("profiles")
+        .select("google_provider_token")
+        .eq("id", u.user.id)
+        .maybeSingle();
+      return Boolean(data?.google_provider_token);
+    },
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
+  };
+
+  const handleConnectDrive = async () => {
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin + "/connect-drive",
+        extraParams: {
+          scope: DRIVE_SCOPES,
+          access_type: "offline",
+          prompt: "consent",
+        },
+      });
+      if (result.error) throw result.error instanceof Error ? result.error : new Error(String(result.error));
+      if (result.redirected) return;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to connect Google Drive");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDisconnectDrive = async () => {
+    setBusy(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ google_provider_token: null })
+        .eq("id", u.user.id);
+      if (error) throw error;
+      toast.success("Google Drive disconnected");
+      qc.invalidateQueries({ queryKey: ["drive-connected"] });
+      qc.invalidateQueries({ queryKey: ["drive-folders"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to disconnect");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -53,6 +114,34 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
+        <div className="mb-2 rounded-xl bg-white/40 border border-white/50 p-2 space-y-1">
+          {driveConnected ? (
+            <>
+              <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-emerald-700">
+                <CheckCircle2 className="h-4 w-4" />
+                Drive connected
+              </div>
+              <button
+                onClick={handleDisconnectDrive}
+                disabled={busy}
+                className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-xs text-slate-600 hover:bg-white/60 disabled:opacity-50"
+              >
+                <Unlink className="h-3.5 w-3.5" />
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleConnectDrive}
+              disabled={busy}
+              className="flex items-center gap-2 w-full rounded-lg px-2 py-2 text-xs font-medium text-indigo-700 hover:bg-white/60 disabled:opacity-50"
+            >
+              <HardDrive className="h-4 w-4" />
+              {busy ? "Connecting…" : "Link Google Drive"}
+            </button>
+          )}
+        </div>
+
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all text-slate-600 hover:bg-white/40 hover:text-slate-900 mb-2 w-full"
@@ -60,13 +149,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <LogOut className="h-5 w-5" />
           Log out
         </button>
-
-        <div className="mt-auto rounded-2xl bg-white/40 p-4 backdrop-blur-sm border border-white/50 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tip</p>
-          <p className="mt-2 text-xs leading-relaxed text-slate-600">
-            Link a Drive folder to auto-ingest meeting notes.
-          </p>
-        </div>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
