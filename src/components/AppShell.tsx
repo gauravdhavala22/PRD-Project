@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LayoutDashboard, FolderKanban, GitCommit, Sparkles, LogOut, HardDrive, CheckCircle2, Unlink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -43,16 +42,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const handleConnectDrive = async () => {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/connect-drive",
-        extraParams: {
-          scope: DRIVE_SCOPES,
-          access_type: "offline",
-          prompt: "consent",
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/connect-drive",
+          scopes: DRIVE_SCOPES,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
-      if (result.error) throw result.error instanceof Error ? result.error : new Error(String(result.error));
-      if (result.redirected) return;
+      if (error) throw error;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to connect Google Drive");
     } finally {

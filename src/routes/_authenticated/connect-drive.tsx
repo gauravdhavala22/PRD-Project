@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HardDrive } from "lucide-react";
@@ -61,31 +61,19 @@ function ConnectDrivePage() {
   const handleConnect = async () => {
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/connect-drive",
-        extraParams: {
-          scope: DRIVE_SCOPES,
-          access_type: "offline",
-          prompt: "consent",
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/connect-drive",
+          scopes: DRIVE_SCOPES,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
-      if (result.error) {
-        throw result.error instanceof Error ? result.error : new Error(String(result.error));
-      }
-      if (result.redirected) return;
-
-      const { data: sess } = await supabase.auth.getSession();
-      const providerToken = sess.session?.provider_token;
-      const user = sess.session?.user;
-      if (user) {
-        await supabase.from("profiles").upsert({
-          id: user.id,
-          email: user.email,
-          ...(providerToken ? { google_provider_token: providerToken } : {}),
-        });
-      }
-      toast.success("Google Drive connected");
-      navigate({ to: "/dashboard", replace: true });
+      if (error) throw error;
+      return;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to connect Google Drive");
     } finally {
