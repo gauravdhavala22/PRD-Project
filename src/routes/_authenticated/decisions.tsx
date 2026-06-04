@@ -153,7 +153,7 @@ function DecisionsPage() {
       toast.error("No decisions to export");
       return;
     }
-    const headers = ["Title", "Description", "Status", "Confidence", "Decision Date", "Source Note"];
+    const headers = ["Title", "Description", "Category", "Status", "Confidence", "Decision Date", "Source Note"];
     const escape = (v: unknown) => {
       const s = v == null ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -161,6 +161,7 @@ function DecisionsPage() {
     const rows = decisions.map((d) => [
       d.title,
       d.description,
+      d.category || "Uncategorized",
       d.status,
       `${(d.confidence * 100).toFixed(0)}%`,
       d.decision_date ?? "",
