@@ -234,6 +234,9 @@ function DecisionsPage() {
                     {d.title}
                   </CardTitle>
                   <div className="flex flex-wrap gap-2 mt-1.5">
+                    <Badge variant="outline" className={CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}>
+                      {d.category || "Uncategorized"}
+                    </Badge>
                     <Badge variant={d.status === "approved" ? "default" : "secondary"}>{d.status}</Badge>
                     <Badge variant="outline">conf {(d.confidence * 100).toFixed(0)}%</Badge>
                     {d.decision_date && <Badge variant="outline">{d.decision_date}</Badge>}
