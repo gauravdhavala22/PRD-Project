@@ -72,11 +72,12 @@ function DecisionsPage() {
   });
 
   const { data: decisions } = useQuery({
-    queryKey: ["decisions", projectId, filter],
+    queryKey: ["decisions", projectId, filter, categoryFilter],
     queryFn: async () => {
       let q = supabase.from("decisions").select("*").order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
       if (filter !== "all") q = q.eq("status", filter);
+      if (categoryFilter !== "all") q = q.eq("category", categoryFilter);
       const { data, error } = await q;
       if (error) throw error;
       return data as Decision[];
