@@ -41,7 +41,7 @@ export const listDriveFolders = createServerFn({ method: "POST" })
     }
     const q = encodeURIComponent(parts.join(" and "));
     const fields = encodeURIComponent("files(id,name,modifiedTime,parents)");
-    const res = await driveGet(
+    const res = await driveGet(null,
       token,
       `/files?q=${q}&fields=${fields}&pageSize=50&orderBy=modifiedTime desc`,
     );
@@ -69,7 +69,7 @@ export const listDocsInFolder = createServerFn({ method: "POST" })
       `'${safeId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false`,
     );
     const fields = encodeURIComponent("files(id,name,modifiedTime)");
-    const res = await driveGet(
+    const res = await driveGet(null,
       token,
       `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc` +
         `&includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives`,
@@ -136,7 +136,7 @@ export const importDriveDocs = createServerFn({ method: "POST" })
     }> = [];
 
     for (const doc of toFetch) {
-      const res = await driveGet(
+      const res = await driveGet(null,
         token,
         `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
       );
@@ -275,7 +275,7 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
         `'${safeId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false`,
       );
       const fields = encodeURIComponent("files(id,name,modifiedTime)");
-      const listRes = await driveGet(
+      const listRes = await driveGet(null,
         token,
         `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc` +
           `&includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives`,
@@ -302,7 +302,7 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
       const toFetch = docs.filter((d) => !existingIds.has(d.id));
 
       for (const doc of toFetch) {
-        const exportRes = await driveGet(
+        const exportRes = await driveGet(null,
           token,
           `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
         );
