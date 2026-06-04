@@ -85,6 +85,7 @@ const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extracti
             decision_date: toText(decision.decision_date) || undefined,
             confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
             source_note_id: toText(decision.source_note_id),
+            category: normalizeCategory(decision.category),
           });
           return acc;
         }, [])
