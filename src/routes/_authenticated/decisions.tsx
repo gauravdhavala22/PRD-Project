@@ -36,8 +36,19 @@ export const Route = createFileRoute("/_authenticated/decisions")({
   component: DecisionsPage,
 });
 
+function StatCard({ label, value, gradient }: { label: string; value: number; gradient: string }) {
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border border-transparent ring-1 ring-border/40 bg-card p-5 shadow-sm`}>
+      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${gradient}`} />
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-2 text-3xl font-bold tracking-tight">{value}</div>
+    </div>
+  );
+}
+
 function DecisionsPage() {
   const { projectId } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Decision | null>(null);
@@ -164,40 +175,74 @@ function DecisionsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const total = decisions?.length ?? 0;
+  const pendingCount = decisions?.filter((d) => d.status === "pending").length ?? 0;
+  const approvedCount = decisions?.filter((d) => d.status === "approved").length ?? 0;
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const thisWeek = decisions?.filter((d) => d.decision_date && new Date(d.decision_date).getTime() >= weekAgo).length ?? 0;
+
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent">
-            Decision Log
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {projectName ? `Project: ${projectName}` : "All projects"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => sync.mutate()}
-            disabled={sync.isPending}
-          >
-            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
-            {sync.isPending ? "Syncing…" : "Sync now"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={downloadCsv}>
-            <Download className="h-4 w-4 mr-1" /> Download CSV
-          </Button>
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="relative min-h-screen">
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-32 -left-24 h-80 w-80 rounded-full bg-amber-400/20 blur-3xl" />
+        <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-rose-400/20 blur-3xl" />
+        <div className="absolute top-1/3 left-1/2 h-72 w-72 rounded-full bg-fuchsia-400/10 blur-3xl" />
       </div>
+      <div className="p-8 max-w-6xl">
+        <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
+          <div>
+            <h1 className="text-4xl font-semibold tracking-tight bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent">
+              Decision Log
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {projectName ? `Project: ${projectName}` : "Every decision across every project — sourced, dated, and auditable."}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              size="sm"
+              onClick={() => sync.mutate()}
+              disabled={sync.isPending}
+              className="bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 text-white border-0 shadow-lg shadow-rose-400/20 hover:opacity-90"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+              {sync.isPending ? "Syncing…" : "Sync now"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={downloadCsv}>
+              <Download className="h-4 w-4 mr-1" /> Download CSV
+            </Button>
+            <Select
+              value={projectId ?? "all"}
+              onValueChange={(v) =>
+                navigate({ search: { projectId: v === "all" ? undefined : v }, replace: true })
+              }
+            >
+              <SelectTrigger className="w-48"><SelectValue placeholder="All projects" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All projects</SelectItem>
+                {projects?.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <StatCard label="Total" value={total} gradient="from-indigo-400 to-violet-400" />
+          <StatCard label="Pending" value={pendingCount} gradient="from-amber-400 to-rose-400" />
+          <StatCard label="Approved" value={approvedCount} gradient="from-emerald-400 to-teal-400" />
+          <StatCard label="This week" value={thisWeek} gradient="from-sky-400 to-fuchsia-400" />
+        </div>
+
 
       {decisions && decisions.length === 0 ? (
         <Card><CardContent className="py-16 text-center text-sm text-muted-foreground">
@@ -281,6 +326,7 @@ function DecisionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
