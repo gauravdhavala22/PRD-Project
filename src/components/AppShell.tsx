@@ -18,9 +18,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const checkDrive = useServerFn(isDriveConnected);
 
-  const { data: driveConnected } = useQuery({
+  const { data: drive } = useQuery({
     queryKey: ["drive-connected"],
-    queryFn: async () => (await checkDrive()).connected,
+    queryFn: () => checkDrive(),
   });
 
   const handleLogout = async () => {
