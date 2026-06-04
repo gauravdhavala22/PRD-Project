@@ -28,12 +28,8 @@ export const listDriveFolders = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({ search: z.string().max(200).optional() }).parse(input ?? {}),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const token = null;
-    if (!token) {
-      return { folders: [], notConnected: true as const };
-    }
+  .handler(async ({ data }) => {
+
 
     const parts = [
       "mimeType='application/vnd.google-apps.folder'",
