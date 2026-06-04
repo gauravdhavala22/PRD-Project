@@ -7,14 +7,17 @@ const GOOGLE_API = "https://www.googleapis.com/drive/v3";
 async function getUserDriveToken(
   supabase: import("@supabase/supabase-js").SupabaseClient,
   userId: string,
-): Promise<string> {
+): Promise<string | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("google_provider_token")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  const token = (data?.google_provider_token as string | null) ?? null;
+  return (data?.google_provider_token as string | null) ?? null;
+}
+
+function requireToken(token: string | null): string {
   if (!token) {
     throw new Error(
       "Google Drive isn't connected. Please sign in with Google to grant Drive access.",
