@@ -74,19 +74,6 @@ function ConnectDrivePage() {
       });
       if (error) throw error;
       return;
-
-      const { data: sess } = await supabase.auth.getSession();
-      const providerToken = sess.session?.provider_token;
-      const user = sess.session?.user;
-      if (user) {
-        await supabase.from("profiles").upsert({
-          id: user.id,
-          email: user.email,
-          ...(providerToken ? { google_provider_token: providerToken } : {}),
-        });
-      }
-      toast.success("Google Drive connected");
-      navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to connect Google Drive");
     } finally {
