@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 const navItems = [
-  { to: "/decisions", label: "Decision Log", icon: GitCommit, primary: true },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/projects", label: "Projects", icon: FolderKanban },
+  { to: "/decisions", label: "Decision Log", icon: GitCommit },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -33,21 +33,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all relative",
+                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all",
                   active
-                    ? item.primary
-                      ? "bg-gradient-to-r from-amber-400/40 via-rose-400/40 to-fuchsia-400/40 text-rose-900 shadow-sm"
-                      : "bg-indigo-200/40 text-indigo-800"
-                    : item.primary
-                      ? "text-rose-700 hover:bg-white/50"
-                      : "text-slate-600 hover:bg-white/40 hover:text-slate-900",
+                    ? "bg-indigo-200/40 text-indigo-800"
+                    : "text-slate-600 hover:bg-white/40 hover:text-slate-900",
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                <span className="flex-1">{item.label}</span>
-                {item.primary && !active && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
-                )}
+                {item.label}
               </Link>
             );
           })}

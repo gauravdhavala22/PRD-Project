@@ -21,7 +21,7 @@ function Landing() {
   const navigate = useNavigate();
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/decisions", replace: true });
+      if (data.session) navigate({ to: "/dashboard", replace: true });
     });
   }, [navigate]);
 
@@ -35,19 +35,19 @@ function Landing() {
             </div>
             <span className="font-semibold">BA AI Assistant</span>
           </div>
-          <Button asChild size="sm"><Link to="/decisions">Open Decision Log</Link></Button>
+          <Button asChild size="sm"><Link to="/dashboard">Open app</Link></Button>
         </div>
       </header>
       <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
         <h1 className="text-5xl font-bold tracking-tight">
-          Every decision, captured automatically.
+          Turn meeting notes into PRDs.
         </h1>
         <p className="mt-5 text-lg text-muted-foreground max-w-2xl mx-auto">
-          Drop in your meeting notes. Get an auditable Decision Log with sources, dates,
-          and the people who agreed — plus PRDs on demand.
+          The AI assistant for Business Analysts. Extract requirements, user stories,
+          risks, and decisions from meeting notes — automatically.
         </p>
         <div className="mt-8 flex gap-3 justify-center">
-          <Button asChild size="lg"><Link to="/decisions">Open Decision Log</Link></Button>
+          <Button asChild size="lg"><Link to="/dashboard">Get started</Link></Button>
         </div>
       </section>
       <section className="max-w-5xl mx-auto px-6 pb-24 grid md:grid-cols-3 gap-6">

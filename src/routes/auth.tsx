@@ -26,7 +26,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/decisions", replace: true });
+      if (data.session) navigate({ to: "/dashboard", replace: true });
     });
   }, [navigate]);
 
@@ -39,7 +39,7 @@ function AuthPage() {
       await supabase.auth.signInAnonymously();
     }
     setLoading(false);
-    navigate({ to: "/decisions", replace: true });
+    navigate({ to: "/dashboard", replace: true });
   };
 
   return (
