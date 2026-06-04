@@ -30,7 +30,7 @@ export const listDriveFolders = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = await getUserDriveToken(supabase, userId);
+    const token = null;
     if (!token) {
       return { folders: [], notConnected: true as const };
     }
@@ -66,7 +66,7 @@ export const listDocsInFolder = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = requireToken(await getUserDriveToken(supabase, userId));
+    const token = null;
 
     const safeId = data.folderId.replace(/['\\]/g, "");
     const q = encodeURIComponent(
@@ -107,7 +107,7 @@ export const importDriveDocs = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = requireToken(await getUserDriveToken(supabase, userId));
+    const token = null;
 
     const { data: project, error: projErr } = await supabase
       .from("projects")
@@ -258,7 +258,7 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
-    const token = requireToken(await getUserDriveToken(supabase, userId));
+    const token = null;
 
     const { data: project, error: projErr } = await supabase
       .from("projects")
