@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,12 +21,15 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+const DRIVE_SCOPES = "openid email profile https://www.googleapis.com/auth/drive.readonly";
+
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -54,6 +58,41 @@ function AuthPage() {
     }
   };
 
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+        extraParams: {
+          scope: DRIVE_SCOPES,
+          access_type: "offline",
+          prompt: "consent",
+        },
+      });
+      if (result.error) {
+        throw result.error instanceof Error ? result.error : new Error(String(result.error));
+      }
+      if (result.redirected) return;
+
+      // Tokens already set; persist provider token for Drive calls.
+      const { data: sess } = await supabase.auth.getSession();
+      const providerToken = sess.session?.provider_token;
+      const user = sess.session?.user;
+      if (user) {
+        await supabase.from("profiles").upsert({
+          id: user.id,
+          email: user.email,
+          ...(providerToken ? { google_provider_token: providerToken } : {}),
+        });
+      }
+      navigate({ to: "/dashboard", replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen grid place-items-center bg-muted/30 p-4">
       <div className="w-full max-w-md">
@@ -66,9 +105,30 @@ function AuthPage() {
         <Card>
           <CardHeader>
             <CardTitle>Welcome</CardTitle>
-            <CardDescription>Sign in or create an account to continue.</CardDescription>
+            <CardDescription>
+              Sign in with Google to also connect your Drive in one step, or use email and password.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogle}
+              disabled={googleLoading}
+            >
+              {googleLoading ? "Redirecting…" : "Continue with Google (+ Drive access)"}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+
             <Tabs value={mode} onValueChange={(v) => setMode(v as "signin" | "signup")}>
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="signin">Sign in</TabsTrigger>
