@@ -10,7 +10,7 @@ const DecisionSchema = z.object({
   decision_date: z.string().optional(),
   confidence: z.number().optional(),
   source_note_id: z.string().optional(),
-  category: z.enum(["Product", "Technical", "Business", "Process"]),
+  category: z.enum(["Product & Business", "Technical", "Process"]),
 });
 
 const RawExtractionSchema = z.object({
