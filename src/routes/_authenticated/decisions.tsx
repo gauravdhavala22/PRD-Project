@@ -25,8 +25,18 @@ type Decision = {
   decision_date: string | null;
   confidence: number;
   status: string;
+  category: string;
   project_id: string;
   meeting_note_id: string | null;
+};
+
+const CATEGORIES = ["Product", "Technical", "Business", "Process", "Uncategorized"] as const;
+const CATEGORY_STYLES: Record<string, string> = {
+  Product: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
+  Technical: "bg-sky-100 text-sky-700 border-sky-200",
+  Business: "bg-amber-100 text-amber-700 border-amber-200",
+  Process: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  Uncategorized: "bg-muted text-muted-foreground",
 };
 
 export const Route = createFileRoute("/_authenticated/decisions")({
@@ -40,6 +50,7 @@ function DecisionsPage() {
   const { projectId } = Route.useSearch();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Decision | null>(null);
 
   const { data: projects } = useQuery({
@@ -61,11 +72,12 @@ function DecisionsPage() {
   });
 
   const { data: decisions } = useQuery({
-    queryKey: ["decisions", projectId, filter],
+    queryKey: ["decisions", projectId, filter, categoryFilter],
     queryFn: async () => {
       let q = supabase.from("decisions").select("*").order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
       if (filter !== "all") q = q.eq("status", filter);
+      if (categoryFilter !== "all") q = q.eq("category", categoryFilter);
       const { data, error } = await q;
       if (error) throw error;
       return data as Decision[];
@@ -141,7 +153,7 @@ function DecisionsPage() {
       toast.error("No decisions to export");
       return;
     }
-    const headers = ["Title", "Description", "Status", "Confidence", "Decision Date", "Source Note"];
+    const headers = ["Title", "Description", "Category", "Status", "Confidence", "Decision Date", "Source Note"];
     const escape = (v: unknown) => {
       const s = v == null ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -149,6 +161,7 @@ function DecisionsPage() {
     const rows = decisions.map((d) => [
       d.title,
       d.description,
+      d.category || "Uncategorized",
       d.status,
       `${(d.confidence * 100).toFixed(0)}%`,
       d.decision_date ?? "",
@@ -188,10 +201,19 @@ function DecisionsPage() {
           <Button variant="outline" size="sm" onClick={downloadCsv}>
             <Download className="h-4 w-4 mr-1" /> Download CSV
           </Button>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
             </SelectContent>
@@ -213,6 +235,9 @@ function DecisionsPage() {
                     {d.title}
                   </CardTitle>
                   <div className="flex flex-wrap gap-2 mt-1.5">
+                    <Badge variant="outline" className={CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}>
+                      {d.category || "Uncategorized"}
+                    </Badge>
                     <Badge variant={d.status === "approved" ? "default" : "secondary"}>{d.status}</Badge>
                     <Badge variant="outline">conf {(d.confidence * 100).toFixed(0)}%</Badge>
                     {d.decision_date && <Badge variant="outline">{d.decision_date}</Badge>}

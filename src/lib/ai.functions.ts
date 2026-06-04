@@ -33,7 +33,15 @@ type Extraction = {
     decision_date?: string;
     confidence: number;
     source_note_id: string;
+    category: string;
   }>;
+};
+
+const ALLOWED_CATEGORIES = ["Product", "Technical", "Business", "Process"] as const;
+const normalizeCategory = (value: unknown): string => {
+  const text = toText(value).toLowerCase();
+  const match = ALLOWED_CATEGORIES.find((c) => c.toLowerCase() === text);
+  return match ?? "Uncategorized";
 };
 
 const toText = (value: unknown) => {
@@ -77,6 +85,7 @@ const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extracti
             decision_date: toText(decision.decision_date) || undefined,
             confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
             source_note_id: toText(decision.source_note_id),
+            category: normalizeCategory(decision.category),
           });
           return acc;
         }, [])
@@ -134,7 +143,8 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
       "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, user_stories, acceptance_criteria, risks, assumptions, open_questions, decisions. " +
       "Use strings for summaries and arrays of strings for lists. If a section has no relevant content, return an empty array or empty string (never null). " +
-      "For every decision include title, description, confidence, and source_note_id using the exact id shown in the NOTE header. " +
+      "For every decision include title, description, confidence, source_note_id using the exact id shown in the NOTE header, and category. " +
+      "The category MUST be exactly one of: 'Product' (features, scope, UX, user-facing behavior), 'Technical' (architecture, tools, stack, infra, implementation), 'Business' (pricing, GTM, partnerships, budget, strategy), or 'Process' (timelines, ownership, workflow, meeting cadence, team operations). Pick the single best fit. " +
       "Whenever the notes mention specific people tied to a decision (decision-maker, owner, who agreed), include their full names in the description (e.g. 'John Smith decided…', 'Agreed by Jane Doe and Alex Kim'). Use the exact names from the notes; if no person is named, omit names rather than guessing. " +
       "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.";
 
@@ -201,6 +211,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
           ? d.decision_date.slice(0, 10)
           : null,
         confidence: Math.max(0, Math.min(1, d.confidence)),
+        category: d.category,
         status: "pending",
       }));
       await supabase.from("decisions").insert(decisionRows);

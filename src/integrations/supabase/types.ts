@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       decisions: {
         Row: {
+          category: string
           confidence: number
           created_at: string
           decision_date: string | null
@@ -29,6 +30,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string
           confidence?: number
           created_at?: string
           decision_date?: string | null
@@ -42,6 +44,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string
           confidence?: number
           created_at?: string
           decision_date?: string | null
