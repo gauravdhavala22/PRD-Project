@@ -65,17 +65,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="mb-2 rounded-xl bg-white/40 border border-white/50 p-2">
           {drive?.connected ? (
-            <div
-              className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-emerald-700 cursor-default"
-              title={
-                drive.email
-                  ? `Connected to ${drive.email}${drive.name ? ` (${drive.name})` : ""}`
-                  : "Drive connected"
-              }
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Drive connected
-            </div>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-emerald-700 cursor-default">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Drive connected
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {drive.email
+                    ? `Connected to ${drive.email}${drive.name ? ` (${drive.name})` : ""}`
+                    : "Drive connected"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : (
             <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-slate-500">
               <HardDrive className="h-4 w-4" />
