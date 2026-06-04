@@ -53,6 +53,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all text-slate-600 hover:bg-white/40 hover:text-slate-900 mb-2 w-full"
+        >
+          <LogOut className="h-5 w-5" />
+          Log out
+        </button>
+
         <div className="mt-auto rounded-2xl bg-white/40 p-4 backdrop-blur-sm border border-white/50 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tip</p>
           <p className="mt-2 text-xs leading-relaxed text-slate-600">
