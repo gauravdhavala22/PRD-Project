@@ -153,7 +153,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, user_stories, acceptance_criteria, risks, assumptions, open_questions, decisions. " +
       "Use strings for summaries and arrays of strings for lists. If a section has no relevant content, return an empty array or empty string (never null). " +
       "For every decision include title, description, confidence, source_note_id using the exact id shown in the NOTE header, and category. " +
-      "The category MUST be exactly one of: 'Product' (features, scope, UX, user-facing behavior), 'Technical' (architecture, tools, stack, infra, implementation), 'Business' (pricing, GTM, partnerships, budget, strategy), or 'Process' (timelines, ownership, workflow, meeting cadence, team operations). Pick the single best fit. " +
+      "The category MUST be exactly one of: 'Product & Business' (features, scope, UX, user-facing behavior, pricing, GTM, partnerships, budget, strategy, monetization), 'Technical' (architecture, tools, stack, infra, implementation, data models, security), or 'Process' (timelines, ownership, workflow, meeting cadence, team operations, hiring, release process). Pick the single best fit. " +
       "Whenever the notes mention specific people tied to a decision (decision-maker, owner, who agreed), include their full names in the description (e.g. 'John Smith decided…', 'Agreed by Jane Doe and Alex Kim'). Use the exact names from the notes; if no person is named, omit names rather than guessing. " +
       "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.";
 
