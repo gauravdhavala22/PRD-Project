@@ -50,6 +50,7 @@ function DecisionsPage() {
   const { projectId } = Route.useSearch();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Decision | null>(null);
 
   const { data: projects } = useQuery({
