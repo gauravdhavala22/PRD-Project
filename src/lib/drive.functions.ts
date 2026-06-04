@@ -2,34 +2,24 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const GOOGLE_API = "https://www.googleapis.com/drive/v3";
+const GATEWAY = "https://connector-gateway.lovable.dev/google_drive/drive/v3";
 
-async function getUserDriveToken(
-  supabase: import("@supabase/supabase-js").SupabaseClient,
-  userId: string,
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("google_provider_token")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data?.google_provider_token as string | null) ?? null;
-}
-
-function requireToken(token: string | null): string {
-  if (!token) {
+function gatewayHeaders(): HeadersInit {
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  const driveKey = process.env.GOOGLE_DRIVE_API_KEY;
+  if (!lovableKey || !driveKey) {
     throw new Error(
-      "Google Drive isn't connected. Please sign in with Google to grant Drive access.",
+      "Google Drive isn't connected. Please link the Google Drive connector in Lovable.",
     );
   }
-  return token;
+  return {
+    Authorization: `Bearer ${lovableKey}`,
+    "X-Connection-Api-Key": driveKey,
+  };
 }
 
-async function driveGet(token: string, path: string): Promise<Response> {
-  return fetch(`${GOOGLE_API}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+async function driveGet(_token: unknown, path: string): Promise<Response> {
+  return fetch(`${GATEWAY}${path}`, { headers: gatewayHeaders() });
 }
 
 /** List folders in the signed-in user's Drive, optionally filtered by name. */
