@@ -46,7 +46,7 @@ type Extraction = {
   }>;
 };
 
-const ALLOWED_CATEGORIES = ["Product", "Technical", "Business", "Process"] as const;
+const ALLOWED_CATEGORIES = ["Product & Business", "Technical", "Process"] as const;
 const normalizeCategory = (value: unknown): string => {
   const text = toText(value).toLowerCase();
   const match = ALLOWED_CATEGORIES.find((c) => c.toLowerCase() === text);
