@@ -2,35 +2,33 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const GOOGLE_API = "https://www.googleapis.com/drive/v3";
+const GATEWAY = "https://connector-gateway.lovable.dev/google_drive/drive/v3";
 
-async function getUserDriveToken(
-  supabase: import("@supabase/supabase-js").SupabaseClient,
-  userId: string,
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("google_provider_token")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data?.google_provider_token as string | null) ?? null;
-}
-
-function requireToken(token: string | null): string {
-  if (!token) {
+function gatewayHeaders(): HeadersInit {
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  const driveKey = process.env.GOOGLE_DRIVE_API_KEY;
+  if (!lovableKey || !driveKey) {
     throw new Error(
-      "Google Drive isn't connected. Please sign in with Google to grant Drive access.",
+      "Google Drive isn't connected. Please link the Google Drive connector in Lovable.",
     );
   }
-  return token;
+  return {
+    Authorization: `Bearer ${lovableKey}`,
+    "X-Connection-Api-Key": driveKey,
+  };
 }
 
-async function driveGet(token: string, path: string): Promise<Response> {
-  return fetch(`${GOOGLE_API}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+async function driveGet(_unused: unknown, path: string): Promise<Response> {
+  return fetch(`${GATEWAY}${path}`, { headers: gatewayHeaders() });
 }
+
+/** Check if the Google Drive connector is linked. */
+export const isDriveConnected = createServerFn({ method: "GET" })
+  .handler(async () => {
+    return {
+      connected: Boolean(process.env.LOVABLE_API_KEY && process.env.GOOGLE_DRIVE_API_KEY),
+    };
+  });
 
 /** List folders in the signed-in user's Drive, optionally filtered by name. */
 export const listDriveFolders = createServerFn({ method: "POST" })
@@ -38,12 +36,8 @@ export const listDriveFolders = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({ search: z.string().max(200).optional() }).parse(input ?? {}),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const token = await getUserDriveToken(supabase, userId);
-    if (!token) {
-      return { folders: [], notConnected: true as const };
-    }
+  .handler(async ({ data }) => {
+
 
     const parts = [
       "mimeType='application/vnd.google-apps.folder'",
@@ -55,8 +49,7 @@ export const listDriveFolders = createServerFn({ method: "POST" })
     }
     const q = encodeURIComponent(parts.join(" and "));
     const fields = encodeURIComponent("files(id,name,modifiedTime,parents)");
-    const res = await driveGet(
-      token,
+    const res = await driveGet(null,
       `/files?q=${q}&fields=${fields}&pageSize=50&orderBy=modifiedTime desc`,
     );
     if (!res.ok) {
@@ -76,15 +69,13 @@ export const listDocsInFolder = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = requireToken(await getUserDriveToken(supabase, userId));
 
     const safeId = data.folderId.replace(/['\\]/g, "");
     const q = encodeURIComponent(
       `'${safeId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false`,
     );
     const fields = encodeURIComponent("files(id,name,modifiedTime)");
-    const res = await driveGet(
-      token,
+    const res = await driveGet(null,
       `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc` +
         `&includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives`,
     );
@@ -117,7 +108,6 @@ export const importDriveDocs = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = requireToken(await getUserDriveToken(supabase, userId));
 
     const { data: project, error: projErr } = await supabase
       .from("projects")
@@ -150,8 +140,7 @@ export const importDriveDocs = createServerFn({ method: "POST" })
     }> = [];
 
     for (const doc of toFetch) {
-      const res = await driveGet(
-        token,
+      const res = await driveGet(null,
         `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
       );
       if (!res.ok) {
@@ -268,7 +257,6 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
-    const token = requireToken(await getUserDriveToken(supabase, userId));
 
     const { data: project, error: projErr } = await supabase
       .from("projects")
@@ -289,8 +277,7 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
         `'${safeId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false`,
       );
       const fields = encodeURIComponent("files(id,name,modifiedTime)");
-      const listRes = await driveGet(
-        token,
+      const listRes = await driveGet(null,
         `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc` +
           `&includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives`,
       );
@@ -316,8 +303,7 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
       const toFetch = docs.filter((d) => !existingIds.has(d.id));
 
       for (const doc of toFetch) {
-        const exportRes = await driveGet(
-          token,
+        const exportRes = await driveGet(null,
           `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
         );
         if (!exportRes.ok) {

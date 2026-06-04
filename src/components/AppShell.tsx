@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, FolderKanban, GitCommit, Sparkles, LogOut, HardDrive, CheckCircle2, Unlink } from "lucide-react";
+import { LayoutDashboard, FolderKanban, GitCommit, Sparkles, LogOut, HardDrive, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { type ReactNode } from "react";
+import { isDriveConnected } from "@/lib/drive.functions";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -12,73 +13,19 @@ const navItems = [
   { to: "/decisions", label: "Decision Log", icon: GitCommit },
 ];
 
-const DRIVE_SCOPES = "openid email profile https://www.googleapis.com/auth/drive.readonly";
-
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState(false);
+  const checkDrive = useServerFn(isDriveConnected);
 
   const { data: driveConnected } = useQuery({
     queryKey: ["drive-connected"],
-    queryFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return false;
-      const { data } = await supabase
-        .from("profiles")
-        .select("google_provider_token")
-        .eq("id", u.user.id)
-        .maybeSingle();
-      return Boolean(data?.google_provider_token);
-    },
+    queryFn: async () => (await checkDrive()).connected,
   });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
-  };
-
-  const handleConnectDrive = async () => {
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin + "/connect-drive",
-          scopes: DRIVE_SCOPES,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-      if (error) throw error;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to connect Google Drive");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleDisconnectDrive = async () => {
-    setBusy(true);
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { error } = await supabase
-        .from("profiles")
-        .update({ google_provider_token: null })
-        .eq("id", u.user.id);
-      if (error) throw error;
-      toast.success("Google Drive disconnected");
-      qc.invalidateQueries({ queryKey: ["drive-connected"] });
-      qc.invalidateQueries({ queryKey: ["drive-folders"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to disconnect");
-    } finally {
-      setBusy(false);
-    }
   };
 
   return (
@@ -115,31 +62,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="mb-2 rounded-xl bg-white/40 border border-white/50 p-2 space-y-1">
+        <div className="mb-2 rounded-xl bg-white/40 border border-white/50 p-2">
           {driveConnected ? (
-            <>
-              <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-emerald-700">
-                <CheckCircle2 className="h-4 w-4" />
-                Drive connected
-              </div>
-              <button
-                onClick={handleDisconnectDrive}
-                disabled={busy}
-                className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-xs text-slate-600 hover:bg-white/60 disabled:opacity-50"
-              >
-                <Unlink className="h-3.5 w-3.5" />
-                Disconnect
-              </button>
-            </>
+            <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-emerald-700">
+              <CheckCircle2 className="h-4 w-4" />
+              Drive connected
+            </div>
           ) : (
-            <button
-              onClick={handleConnectDrive}
-              disabled={busy}
-              className="flex items-center gap-2 w-full rounded-lg px-2 py-2 text-xs font-medium text-indigo-700 hover:bg-white/60 disabled:opacity-50"
-            >
+            <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-slate-500">
               <HardDrive className="h-4 w-4" />
-              {busy ? "Connecting…" : "Link Google Drive"}
-            </button>
+              Drive not connected
+            </div>
           )}
         </div>
 
