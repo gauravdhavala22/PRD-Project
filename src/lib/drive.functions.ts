@@ -7,14 +7,17 @@ const GOOGLE_API = "https://www.googleapis.com/drive/v3";
 async function getUserDriveToken(
   supabase: import("@supabase/supabase-js").SupabaseClient,
   userId: string,
-): Promise<string> {
+): Promise<string | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("google_provider_token")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  const token = (data?.google_provider_token as string | null) ?? null;
+  return (data?.google_provider_token as string | null) ?? null;
+}
+
+function requireToken(token: string | null): string {
   if (!token) {
     throw new Error(
       "Google Drive isn't connected. Please sign in with Google to grant Drive access.",
@@ -38,6 +41,9 @@ export const listDriveFolders = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const token = await getUserDriveToken(supabase, userId);
+    if (!token) {
+      return { folders: [], notConnected: true as const };
+    }
 
     const parts = [
       "mimeType='application/vnd.google-apps.folder'",
@@ -59,7 +65,7 @@ export const listDriveFolders = createServerFn({ method: "POST" })
     const json = (await res.json()) as {
       files?: Array<{ id: string; name: string; modifiedTime?: string }>;
     };
-    return { folders: json.files ?? [] };
+    return { folders: json.files ?? [], notConnected: false as const };
   });
 
 /** List Google Docs inside a Drive folder. */
@@ -70,7 +76,7 @@ export const listDocsInFolder = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = await getUserDriveToken(supabase, userId);
+    const token = requireToken(await getUserDriveToken(supabase, userId));
 
     const safeId = data.folderId.replace(/['\\]/g, "");
     const q = encodeURIComponent(
@@ -111,7 +117,7 @@ export const importDriveDocs = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = await getUserDriveToken(supabase, userId);
+    const token = requireToken(await getUserDriveToken(supabase, userId));
 
     const { data: project, error: projErr } = await supabase
       .from("projects")
@@ -262,7 +268,7 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
-    const token = await getUserDriveToken(supabase, userId);
+    const token = requireToken(await getUserDriveToken(supabase, userId));
 
     const { data: project, error: projErr } = await supabase
       .from("projects")
