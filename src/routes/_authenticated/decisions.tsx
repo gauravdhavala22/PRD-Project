@@ -30,11 +30,10 @@ type Decision = {
   meeting_note_id: string | null;
 };
 
-const CATEGORIES = ["Product", "Technical", "Business", "Process", "Uncategorized"] as const;
+const CATEGORIES = ["Product & Business", "Technical", "Process", "Uncategorized"] as const;
 const CATEGORY_STYLES: Record<string, string> = {
-  Product: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
+  "Product & Business": "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
   Technical: "bg-sky-100 text-sky-700 border-sky-200",
-  Business: "bg-amber-100 text-amber-700 border-amber-200",
   Process: "bg-emerald-100 text-emerald-700 border-emerald-200",
   Uncategorized: "bg-muted text-muted-foreground",
 };
