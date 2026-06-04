@@ -18,9 +18,17 @@ function gatewayHeaders(): HeadersInit {
   };
 }
 
-async function driveGet(_token: unknown, path: string): Promise<Response> {
+async function driveGet(_unused: unknown, path: string): Promise<Response> {
   return fetch(`${GATEWAY}${path}`, { headers: gatewayHeaders() });
 }
+
+/** Check if the Google Drive connector is linked. */
+export const isDriveConnected = createServerFn({ method: "GET" })
+  .handler(async () => {
+    return {
+      connected: Boolean(process.env.LOVABLE_API_KEY && process.env.GOOGLE_DRIVE_API_KEY),
+    };
+  });
 
 /** List folders in the signed-in user's Drive, optionally filtered by name. */
 export const listDriveFolders = createServerFn({ method: "POST" })
