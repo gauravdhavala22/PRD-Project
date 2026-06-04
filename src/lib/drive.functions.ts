@@ -40,7 +40,7 @@ export const listDriveFolders = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const token = requireToken(await getUserDriveToken(supabase, userId));
+    const token = await getUserDriveToken(supabase, userId);
     if (!token) {
       return { folders: [], notConnected: true as const };
     }
