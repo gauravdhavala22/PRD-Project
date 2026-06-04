@@ -326,6 +326,7 @@ function DecisionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
