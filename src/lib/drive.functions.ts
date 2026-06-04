@@ -42,7 +42,6 @@ export const listDriveFolders = createServerFn({ method: "POST" })
     const q = encodeURIComponent(parts.join(" and "));
     const fields = encodeURIComponent("files(id,name,modifiedTime,parents)");
     const res = await driveGet(null,
-      token,
       `/files?q=${q}&fields=${fields}&pageSize=50&orderBy=modifiedTime desc`,
     );
     if (!res.ok) {
@@ -69,7 +68,6 @@ export const listDocsInFolder = createServerFn({ method: "POST" })
     );
     const fields = encodeURIComponent("files(id,name,modifiedTime)");
     const res = await driveGet(null,
-      token,
       `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc` +
         `&includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives`,
     );
@@ -135,7 +133,6 @@ export const importDriveDocs = createServerFn({ method: "POST" })
 
     for (const doc of toFetch) {
       const res = await driveGet(null,
-        token,
         `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
       );
       if (!res.ok) {
@@ -273,7 +270,6 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
       );
       const fields = encodeURIComponent("files(id,name,modifiedTime)");
       const listRes = await driveGet(null,
-        token,
         `/files?q=${q}&fields=${fields}&pageSize=100&orderBy=modifiedTime desc` +
           `&includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives`,
       );
@@ -300,7 +296,6 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
 
       for (const doc of toFetch) {
         const exportRes = await driveGet(null,
-          token,
           `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
         );
         if (!exportRes.ok) {
