@@ -4,6 +4,15 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
+const DecisionSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  decision_date: z.string().optional(),
+  confidence: z.number().optional(),
+  source_note_id: z.string().optional(),
+  category: z.enum(["Product", "Technical", "Business", "Process"]),
+});
+
 const RawExtractionSchema = z.object({
   executive_summary: z.unknown().optional(),
   problem_statement: z.unknown().optional(),
@@ -14,7 +23,7 @@ const RawExtractionSchema = z.object({
   risks: z.unknown().optional(),
   assumptions: z.unknown().optional(),
   open_questions: z.unknown().optional(),
-  decisions: z.unknown().optional(),
+  decisions: z.array(DecisionSchema).optional(),
 });
 
 type Extraction = {
