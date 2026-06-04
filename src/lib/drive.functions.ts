@@ -41,6 +41,9 @@ export const listDriveFolders = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const token = await getUserDriveToken(supabase, userId);
+    if (!token) {
+      return { folders: [], notConnected: true as const };
+    }
 
     const parts = [
       "mimeType='application/vnd.google-apps.folder'",
@@ -62,7 +65,7 @@ export const listDriveFolders = createServerFn({ method: "POST" })
     const json = (await res.json()) as {
       files?: Array<{ id: string; name: string; modifiedTime?: string }>;
     };
-    return { folders: json.files ?? [] };
+    return { folders: json.files ?? [], notConnected: false as const };
   });
 
 /** List Google Docs inside a Drive folder. */
