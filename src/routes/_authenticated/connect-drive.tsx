@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,41 @@ const DRIVE_SCOPES = "openid email profile https://www.googleapis.com/auth/drive
 
 function ConnectDrivePage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
+
+  // After Google OAuth redirects back here, persist the provider token.
+  useEffect(() => {
+    let cancelled = false;
+    const persistToken = async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const providerToken = sess.session?.provider_token;
+      const user = sess.session?.user;
+      if (!user || !providerToken || cancelled) return;
+      const { error } = await supabase.from("profiles").upsert({
+        id: user.id,
+        email: user.email,
+        google_provider_token: providerToken,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ["drive-connected"] });
+      qc.invalidateQueries({ queryKey: ["drive-folders"] });
+      toast.success("Google Drive connected");
+      navigate({ to: "/dashboard", replace: true });
+    };
+    persistToken();
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") persistToken();
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, [navigate, qc]);
+
 
   const handleConnect = async () => {
     setLoading(true);
