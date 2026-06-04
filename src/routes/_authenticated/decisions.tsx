@@ -48,6 +48,7 @@ function StatCard({ label, value, gradient }: { label: string; value: number; gr
 
 function DecisionsPage() {
   const { projectId } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Decision | null>(null);
