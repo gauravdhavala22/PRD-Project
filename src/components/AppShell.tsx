@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 const navItems = [
+  { to: "/decisions", label: "Decision Log", icon: GitCommit, primary: true },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/decisions", label: "Decision Log", icon: GitCommit },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
