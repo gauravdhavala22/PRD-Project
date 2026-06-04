@@ -36,6 +36,16 @@ export const Route = createFileRoute("/_authenticated/decisions")({
   component: DecisionsPage,
 });
 
+function StatCard({ label, value, gradient }: { label: string; value: number; gradient: string }) {
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border border-transparent ring-1 ring-border/40 bg-card p-5 shadow-sm`}>
+      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${gradient}`} />
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-2 text-3xl font-bold tracking-tight">{value}</div>
+    </div>
+  );
+}
+
 function DecisionsPage() {
   const { projectId } = Route.useSearch();
   const qc = useQueryClient();
