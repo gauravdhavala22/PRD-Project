@@ -112,6 +112,11 @@ function ProjectsPage() {
                     <div className="p-3 text-xs text-muted-foreground">Loading folders…</div>
                   ) : folders.error ? (
                     <div className="p-3 text-xs text-destructive">{(folders.error as Error).message}</div>
+                  ) : folders.data?.notConnected ? (
+                    <div className="p-3 text-xs text-muted-foreground space-y-2">
+                      <p>Google Drive isn't connected.</p>
+                      <Link to="/connect-drive" className="text-primary underline">Connect Google Drive</Link>
+                    </div>
                   ) : (folders.data?.folders.length ?? 0) === 0 ? (
                     <div className="p-3 text-xs text-muted-foreground">No folders found.</div>
                   ) : (
