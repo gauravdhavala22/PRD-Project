@@ -18,9 +18,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const checkDrive = useServerFn(isDriveConnected);
 
-  const { data: driveConnected } = useQuery({
+  const { data: drive } = useQuery({
     queryKey: ["drive-connected"],
-    queryFn: async () => (await checkDrive()).connected,
+    queryFn: () => checkDrive(),
   });
 
   const handleLogout = async () => {
@@ -63,8 +63,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mb-2 rounded-xl bg-white/40 border border-white/50 p-2">
-          {driveConnected ? (
-            <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-emerald-700">
+          {drive?.connected ? (
+            <div
+              className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-emerald-700 cursor-default"
+              title={
+                drive.email
+                  ? `Connected to ${drive.email}${drive.name ? ` (${drive.name})` : ""}`
+                  : "Drive connected"
+              }
+            >
               <CheckCircle2 className="h-4 w-4" />
               Drive connected
             </div>

@@ -22,12 +22,28 @@ async function driveGet(_unused: unknown, path: string): Promise<Response> {
   return fetch(`${GATEWAY}${path}`, { headers: gatewayHeaders() });
 }
 
-/** Check if the Google Drive connector is linked. */
+/** Check if the Google Drive connector is linked, and return account info. */
 export const isDriveConnected = createServerFn({ method: "GET" })
   .handler(async () => {
-    return {
-      connected: Boolean(process.env.LOVABLE_API_KEY && process.env.GOOGLE_DRIVE_API_KEY),
-    };
+    const hasKeys = Boolean(process.env.LOVABLE_API_KEY && process.env.GOOGLE_DRIVE_API_KEY);
+    if (!hasKeys) return { connected: false as const, email: null, name: null };
+    try {
+      const res = await driveGet(
+        null,
+        `/about?fields=${encodeURIComponent("user(emailAddress,displayName)")}`,
+      );
+      if (!res.ok) return { connected: false as const, email: null, name: null };
+      const json = (await res.json()) as {
+        user?: { emailAddress?: string; displayName?: string };
+      };
+      return {
+        connected: true as const,
+        email: json.user?.emailAddress ?? null,
+        name: json.user?.displayName ?? null,
+      };
+    } catch {
+      return { connected: false as const, email: null, name: null };
+    }
   });
 
 /** List folders in the signed-in user's Drive, optionally filtered by name. */
