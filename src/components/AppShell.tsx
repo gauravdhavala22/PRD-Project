@@ -1,6 +1,7 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, FolderKanban, GitCommit, Sparkles } from "lucide-react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { LayoutDashboard, FolderKanban, GitCommit, Sparkles, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import type { ReactNode } from "react";
 
 const navItems = [
@@ -11,6 +12,12 @@ const navItems = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -45,6 +52,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all text-slate-600 hover:bg-white/40 hover:text-slate-900 mb-2 w-full"
+        >
+          <LogOut className="h-5 w-5" />
+          Log out
+        </button>
 
         <div className="mt-auto rounded-2xl bg-white/40 p-4 backdrop-blur-sm border border-white/50 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tip</p>
