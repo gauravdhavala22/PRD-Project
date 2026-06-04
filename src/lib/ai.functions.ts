@@ -33,7 +33,15 @@ type Extraction = {
     decision_date?: string;
     confidence: number;
     source_note_id: string;
+    category: string;
   }>;
+};
+
+const ALLOWED_CATEGORIES = ["Product", "Technical", "Business", "Process"] as const;
+const normalizeCategory = (value: unknown): string => {
+  const text = toText(value).toLowerCase();
+  const match = ALLOWED_CATEGORIES.find((c) => c.toLowerCase() === text);
+  return match ?? "Uncategorized";
 };
 
 const toText = (value: unknown) => {
