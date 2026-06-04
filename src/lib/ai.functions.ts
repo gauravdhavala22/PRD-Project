@@ -211,6 +211,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
           ? d.decision_date.slice(0, 10)
           : null,
         confidence: Math.max(0, Math.min(1, d.confidence)),
+        category: d.category,
         status: "pending",
       }));
       await supabase.from("decisions").insert(decisionRows);
