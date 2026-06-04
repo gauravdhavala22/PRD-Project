@@ -21,7 +21,7 @@ function Landing() {
   const navigate = useNavigate();
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+      if (data.session) navigate({ to: "/decisions", replace: true });
     });
   }, [navigate]);
 
