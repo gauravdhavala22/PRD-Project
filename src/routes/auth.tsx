@@ -41,6 +41,9 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
+        if (password !== confirmPassword) {
+          throw new Error("Passwords do not match");
+        }
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         navigate({ to: "/connect-drive", replace: true });
