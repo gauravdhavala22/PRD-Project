@@ -73,8 +73,6 @@ const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extracti
   problem_statement: toText(raw.problem_statement),
   business_goals: toTextArray(raw.business_goals),
   functional_requirements: toTextArray(raw.functional_requirements),
-  user_stories: toTextArray(raw.user_stories),
-  acceptance_criteria: toTextArray(raw.acceptance_criteria),
   risks: toTextArray(raw.risks),
   assumptions: toTextArray(raw.assumptions),
   open_questions: toTextArray(raw.open_questions),
