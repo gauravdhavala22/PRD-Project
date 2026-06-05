@@ -192,32 +192,47 @@ function ProjectsPage() {
             ];
             const g = gradients[i % gradients.length];
             return (
-              <Link key={p.id} to="/projects/$projectId" params={{ projectId: p.id }} className="group">
-                <Card className="relative overflow-hidden border-transparent ring-1 ring-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:ring-violet-500/30">
-                  <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${g}`} />
-                  <CardContent className="p-5">
-                    <div className="flex items-start gap-3">
-                      <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${g} text-white grid place-items-center font-semibold shadow-sm shrink-0`}>
-                        {p.name.slice(0, 1).toUpperCase()}
+              <div key={p.id} className="relative group">
+                <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block">
+                  <Card className="relative overflow-hidden border-transparent ring-1 ring-border/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:ring-violet-500/30">
+                    <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${g}`} />
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-3">
+                        <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${g} text-white grid place-items-center font-semibold shadow-sm shrink-0`}>
+                          {p.name.slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1 pr-8">
+                          <h3 className="font-medium truncate group-hover:text-foreground">{p.name}</h3>
+                          {p.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.description}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-medium truncate group-hover:text-foreground">{p.name}</h3>
-                        {p.description && (
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.description}</p>
-                        )}
-                      </div>
-                    </div>
-                    {p.drive_folder_name && (
-                      <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                        <Folder className="h-3 w-3" /> {p.drive_folder_name}
+                      {p.drive_folder_name && (
+                        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                          <Folder className="h-3 w-3" /> {p.drive_folder_name}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(p.created_at).toLocaleDateString()}
                       </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(p.created_at).toLocaleDateString()}
-                    </p>
-                  </CardContent>
-                </Card>
-              </Link>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <button
+                  type="button"
+                  aria-label="Delete project"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDeleteId(p.id);
+                    setDeleteName(p.name);
+                  }}
+                  className="absolute top-3 right-3 z-10 h-8 w-8 grid place-items-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-opacity"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             );
           })}
         </div>
