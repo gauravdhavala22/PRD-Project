@@ -20,8 +20,6 @@ type Content = {
   problem_statement: string;
   business_goals: string[];
   functional_requirements: string[];
-  user_stories: string[];
-  acceptance_criteria: string[];
   risks: string[];
   assumptions: string[];
   open_questions: string[];
@@ -32,8 +30,6 @@ const sections: { key: keyof Content; label: string }[] = [
   { key: "problem_statement", label: "Problem Statement" },
   { key: "business_goals", label: "Business Goals" },
   { key: "functional_requirements", label: "Functional Requirements" },
-  { key: "user_stories", label: "User Stories" },
-  { key: "acceptance_criteria", label: "Acceptance Criteria" },
   { key: "risks", label: "Risks" },
   { key: "assumptions", label: "Assumptions" },
   { key: "open_questions", label: "Open Questions" },

@@ -16,8 +16,6 @@ export type PrdContent = {
   problem_statement: string;
   business_goals: string[];
   functional_requirements: string[];
-  user_stories: string[];
-  acceptance_criteria: string[];
   risks: string[];
   assumptions: string[];
   open_questions: string[];
