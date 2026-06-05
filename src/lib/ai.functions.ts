@@ -139,7 +139,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
     const notesPayload = notes
       .map(
         (n) =>
-          `=== NOTE id=${n.id} title="${n.title}" ===\n${(n.content || "").slice(0, 12000)}`,
+          `=== NOTE id=${n.id} title="${n.title}" ===\n${n.content || ""}`,
       )
       .join("\n\n");
 
@@ -147,11 +147,12 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
     const model = gateway("google/gemini-3-flash-preview");
 
     const systemPrompt =
-      "You are a senior business analyst turning raw meeting notes into a PRD. " +
+      "You are a senior business analyst turning raw meeting notes into a comprehensive PRD. " +
       "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
       "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
+      "Be EXHAUSTIVE: capture every important point, requirement, goal, risk, assumption, story, and acceptance criterion present in the notes. Do NOT summarize away or drop details — prefer completeness over brevity. There is no length limit on any field; include as many list items and as much detail as the notes warrant. " +
       "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, user_stories, acceptance_criteria, risks, assumptions, open_questions, decisions. " +
-      "Use strings for summaries and arrays of strings for lists. If a section has no relevant content, return an empty array or empty string (never null). " +
+      "Use strings for summaries (write multi-paragraph prose when the notes support it) and arrays of strings for lists (include every distinct item — do not cap the count). If a section has no relevant content, return an empty array or empty string (never null). " +
       "For every decision include title, description, confidence, source_note_id using the exact id shown in the NOTE header, and category. " +
       "The category MUST be exactly one of: 'Product & Business' (features, scope, UX, user-facing behavior, pricing, GTM, partnerships, budget, strategy, monetization), 'Technical' (architecture, tools, stack, infra, implementation, data models, security), or 'Process' (timelines, ownership, workflow, meeting cadence, team operations, hiring, release process). Pick the single best fit. " +
       "Whenever the notes mention specific people tied to a decision (decision-maker, owner, who agreed), include their full names in the description (e.g. 'John Smith decided…', 'Agreed by Jane Doe and Alex Kim'). Use the exact names from the notes; if no person is named, omit names rather than guessing. " +
@@ -162,9 +163,9 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       const { object } = await generateObject({
         model,
         schema: RawExtractionSchema,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 32768,
         system: systemPrompt,
-        prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the best possible PRD plus a list of decisions. Do your best even if notes are sparse, informal, or noisy.`,
+        prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the most complete and detailed PRD possible plus a full list of decisions. Capture every important point — do not omit details for brevity.`,
       });
       output = normalizeExtraction(object);
     } catch (error) {
@@ -172,10 +173,11 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       try {
         const { text } = await generateText({
           model,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 32768,
           system: systemPrompt,
           prompt: `Project: ${project.name}\n\nMeeting notes:\n${notesPayload}\n\nReturn only the JSON object. No markdown, no commentary.`,
         });
+
         output = normalizeExtraction(RawExtractionSchema.parse(parseJsonObject(text)));
       } catch (fallbackError) {
         console.error("PRD extraction retry failed", fallbackError);
