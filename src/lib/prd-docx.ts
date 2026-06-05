@@ -130,16 +130,6 @@ export async function downloadPrdAsDocx(title: string, content: PrdContent) {
             ? content.functional_requirements.map((item) => textParagraph(`• ${item}`))
             : [textParagraph("No functional requirements listed.")]),
 
-          heading2("User Stories"),
-          ...(content.user_stories.length
-            ? content.user_stories.map((item) => textParagraph(`• ${item}`))
-            : [textParagraph("No user stories listed.")]),
-
-          heading2("Acceptance Criteria"),
-          ...(content.acceptance_criteria.length
-            ? content.acceptance_criteria.map((item) => textParagraph(`• ${item}`))
-            : [textParagraph("No acceptance criteria listed.")]),
-
           heading2("Risks"),
           ...(content.risks.length
             ? content.risks.map((item) => textParagraph(`• ${item}`))
