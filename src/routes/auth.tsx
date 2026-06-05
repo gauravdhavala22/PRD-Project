@@ -105,6 +105,19 @@ function AuthPage() {
                       required
                     />
                   </div>
+                  {mode === "signup" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="confirm-pw">Confirm password</Label>
+                      <Input
+                        id="confirm-pw"
+                        type="password"
+                        placeholder="Re-enter your password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
                   </Button>
