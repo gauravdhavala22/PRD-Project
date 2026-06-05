@@ -18,8 +18,6 @@ const RawExtractionSchema = z.object({
   problem_statement: z.unknown().optional(),
   business_goals: z.unknown().optional(),
   functional_requirements: z.unknown().optional(),
-  user_stories: z.unknown().optional(),
-  acceptance_criteria: z.unknown().optional(),
   risks: z.unknown().optional(),
   assumptions: z.unknown().optional(),
   open_questions: z.unknown().optional(),
@@ -31,8 +29,6 @@ type Extraction = {
   problem_statement: string;
   business_goals: string[];
   functional_requirements: string[];
-  user_stories: string[];
-  acceptance_criteria: string[];
   risks: string[];
   assumptions: string[];
   open_questions: string[];
@@ -77,8 +73,6 @@ const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extracti
   problem_statement: toText(raw.problem_statement),
   business_goals: toTextArray(raw.business_goals),
   functional_requirements: toTextArray(raw.functional_requirements),
-  user_stories: toTextArray(raw.user_stories),
-  acceptance_criteria: toTextArray(raw.acceptance_criteria),
   risks: toTextArray(raw.risks),
   assumptions: toTextArray(raw.assumptions),
   open_questions: toTextArray(raw.open_questions),
@@ -150,8 +144,8 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       "You are a senior business analyst turning raw meeting notes into a comprehensive PRD. " +
       "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
       "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
-      "Be EXHAUSTIVE: capture every important point, requirement, goal, risk, assumption, story, and acceptance criterion present in the notes. Do NOT summarize away or drop details — prefer completeness over brevity. There is no length limit on any field; include as many list items and as much detail as the notes warrant. " +
-      "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, user_stories, acceptance_criteria, risks, assumptions, open_questions, decisions. " +
+      "Be EXHAUSTIVE: capture every important point, requirement, goal, risk, and assumption present in the notes. Do NOT summarize away or drop details — prefer completeness over brevity. There is no length limit on any field; include as many list items and as much detail as the notes warrant. " +
+      "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, risks, assumptions, open_questions, decisions. " +
       "Use strings for summaries (write multi-paragraph prose when the notes support it) and arrays of strings for lists (include every distinct item — do not cap the count). If a section has no relevant content, return an empty array or empty string (never null). " +
       "For every decision include title, description, confidence, source_note_id using the exact id shown in the NOTE header, and category. " +
       "The category MUST be exactly one of: 'Product & Business' (features, scope, UX, user-facing behavior, pricing, GTM, partnerships, budget, strategy, monetization), 'Technical' (architecture, tools, stack, infra, implementation, data models, security), or 'Process' (timelines, ownership, workflow, meeting cadence, team operations, hiring, release process). Pick the single best fit. " +
@@ -198,8 +192,6 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
           problem_statement: output.problem_statement,
           business_goals: output.business_goals,
           functional_requirements: output.functional_requirements,
-          user_stories: output.user_stories,
-          acceptance_criteria: output.acceptance_criteria,
           risks: output.risks,
           assumptions: output.assumptions,
           open_questions: output.open_questions,
