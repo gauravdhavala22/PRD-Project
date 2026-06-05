@@ -32,6 +32,21 @@ function ProjectsPage() {
   const [folderName, setFolderName] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const listFolders = useServerFn(listDriveFolders);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteName, setDeleteName] = useState<string>("");
+
+  const deleteProject = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("projects").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Project deleted");
+      setDeleteId(null);
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: projects } = useQuery({
     queryKey: ["projects"],
