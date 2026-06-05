@@ -60,6 +60,19 @@ function AuthPage() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      toast.error(result.error instanceof Error ? result.error.message : "Google sign-in failed");
+    }
+    if (result.redirected) {
+      return;
+    }
+    navigate({ to: "/dashboard", replace: true });
+  };
+
   return (
     <div className="min-h-screen grid place-items-center bg-muted/30 p-4">
       <div className="w-full max-w-md">
