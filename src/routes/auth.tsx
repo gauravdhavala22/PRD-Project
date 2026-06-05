@@ -70,7 +70,7 @@ function AuthPage() {
     if (result.redirected) {
       return;
     }
-    navigate({ to: "/dashboard", replace: true });
+    navigate({ to: "/connect-drive", replace: true });
   };
 
   return (
