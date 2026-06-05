@@ -18,8 +18,6 @@ const RawExtractionSchema = z.object({
   problem_statement: z.unknown().optional(),
   business_goals: z.unknown().optional(),
   functional_requirements: z.unknown().optional(),
-  user_stories: z.unknown().optional(),
-  acceptance_criteria: z.unknown().optional(),
   risks: z.unknown().optional(),
   assumptions: z.unknown().optional(),
   open_questions: z.unknown().optional(),
@@ -31,8 +29,6 @@ type Extraction = {
   problem_statement: string;
   business_goals: string[];
   functional_requirements: string[];
-  user_stories: string[];
-  acceptance_criteria: string[];
   risks: string[];
   assumptions: string[];
   open_questions: string[];
