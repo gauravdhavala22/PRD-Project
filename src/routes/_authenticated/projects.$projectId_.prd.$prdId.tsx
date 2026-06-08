@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { downloadPrdAsDocx } from "@/lib/prd-docx";
 
@@ -42,6 +42,7 @@ function PrdViewer() {
   const [content, setContent] = useState<Content | null>(null);
   const [status, setStatus] = useState("draft");
   const [sources, setSources] = useState<{ id: string; title: string }[]>([]);
+  const hydratedFor = useRef<string | null>(null);
 
   const { data } = useQuery({
     queryKey: ["prd", prdId],
@@ -56,14 +57,16 @@ function PrdViewer() {
     },
   });
 
+  // Hydrate local edit state once per prdId; avoid wiping in-progress edits on refetch.
   useEffect(() => {
-    if (data) {
-      setTitle(data.prd.title);
-      setContent(data.prd.content as Content);
-      setStatus(data.prd.status);
-      setSources(data.notes);
-    }
-  }, [data]);
+    if (!data) return;
+    if (hydratedFor.current === prdId) return;
+    setTitle(data.prd.title);
+    setContent(data.prd.content as Content);
+    setStatus(data.prd.status);
+    setSources(data.notes);
+    hydratedFor.current = prdId;
+  }, [data, prdId]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -75,13 +78,24 @@ function PrdViewer() {
     },
     onSuccess: () => {
       toast.success("PRD saved");
-      qc.invalidateQueries({ queryKey: ["prd", prdId] });
       qc.invalidateQueries({ queryKey: ["prds", projectId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!content) return <div className="p-8">Loading...</div>;
+  if (!content) {
+    return (
+      <div className="p-8 max-w-4xl space-y-5">
+        <div className="h-6 w-40 rounded bg-muted animate-pulse" />
+        <div className="h-10 w-full rounded bg-muted animate-pulse" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 w-full rounded-md bg-muted/60 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const update = (key: keyof Content, value: string | string[]) =>
     setContent({ ...content, [key]: value } as Content);

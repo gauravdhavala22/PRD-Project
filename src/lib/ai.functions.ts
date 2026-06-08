@@ -4,15 +4,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
-const DecisionSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
-  decision_date: z.string().optional(),
-  confidence: z.number().optional(),
-  source_note_id: z.string().optional(),
-  category: z.enum(["Product & Business", "Technical", "Process"]),
-});
-
 const RawExtractionSchema = z.object({
   executive_summary: z.unknown().optional(),
   problem_statement: z.unknown().optional(),
@@ -21,7 +12,6 @@ const RawExtractionSchema = z.object({
   risks: z.unknown().optional(),
   assumptions: z.unknown().optional(),
   open_questions: z.unknown().optional(),
-  decisions: z.array(DecisionSchema).optional(),
 });
 
 type Extraction = {
@@ -32,21 +22,6 @@ type Extraction = {
   risks: string[];
   assumptions: string[];
   open_questions: string[];
-  decisions: Array<{
-    title: string;
-    description: string;
-    decision_date?: string;
-    confidence: number;
-    source_note_id: string;
-    category: string;
-  }>;
-};
-
-const ALLOWED_CATEGORIES = ["Product & Business", "Technical", "Process"] as const;
-const normalizeCategory = (value: unknown): string => {
-  const text = toText(value).toLowerCase();
-  const match = ALLOWED_CATEGORIES.find((c) => c.toLowerCase() === text);
-  return match ?? "Uncategorized";
 };
 
 const toText = (value: unknown) => {
@@ -76,23 +51,6 @@ const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extracti
   risks: toTextArray(raw.risks),
   assumptions: toTextArray(raw.assumptions),
   open_questions: toTextArray(raw.open_questions),
-  decisions: Array.isArray(raw.decisions)
-    ? raw.decisions.reduce<Extraction["decisions"]>((acc, item) => {
-          const decision = item as Record<string, unknown>;
-          const title = toText(decision.title) || toText(decision.description);
-          if (!title) return acc;
-          const confidence = Number(decision.confidence);
-          acc.push({
-            title,
-            description: toText(decision.description),
-            decision_date: toText(decision.decision_date) || undefined,
-            confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
-            source_note_id: toText(decision.source_note_id),
-            category: normalizeCategory(decision.category),
-          });
-          return acc;
-        }, [])
-    : [],
 });
 
 const parseJsonObject = (text: string) => {
@@ -130,11 +88,13 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       .in("id", data.noteIds);
     if (notesErr || !notes || notes.length === 0) throw new Error("No notes found");
 
+    // Cap per-note content to keep total prompt within model limits.
+    const PER_NOTE_CHAR_CAP = 16000;
     const notesPayload = notes
-      .map(
-        (n) =>
-          `=== NOTE id=${n.id} title="${n.title}" ===\n${n.content || ""}`,
-      )
+      .map((n) => {
+        const body = (n.content || "").slice(0, PER_NOTE_CHAR_CAP);
+        return `=== NOTE id=${n.id} title="${n.title}" ===\n${body}`;
+      })
       .join("\n\n");
 
     const gateway = createLovableAiGatewayProvider(apiKey);
@@ -171,7 +131,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
         output = normalizeExtraction(RawExtractionSchema.parse(parseJsonObject(text)));
       } catch (fallbackError) {
         console.error("PRD extraction retry failed", fallbackError);
-        return { prdId: null, decisionsCount: 0, error: "I couldn't turn these notes into a PRD yet. Try selecting fewer or more detailed notes." };
+        return { prdId: null, error: "I couldn't turn these notes into a PRD yet. Try selecting fewer or more detailed notes." };
       }
     }
 
@@ -198,5 +158,5 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       .single();
     if (prdErr || !prd) throw new Error(prdErr?.message || "Failed to save PRD");
 
-    return { prdId: prd.id, decisionsCount: 0, error: null };
+    return { prdId: prd.id, error: null };
   });

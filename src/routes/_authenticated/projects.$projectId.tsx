@@ -72,11 +72,13 @@ function ProjectDetail() {
 
   const addNote = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
+      // Use cached session (no network) — RLS still enforces user_id = auth.uid().
+      const { data: s } = await supabase.auth.getSession();
+      const uid = s.session?.user.id;
+      if (!uid) throw new Error("Not signed in");
       const { error } = await supabase.from("meeting_notes").insert({
         project_id: projectId,
-        user_id: u.user.id,
+        user_id: uid,
         title: noteTitle.trim(),
         content: noteContent,
         source: "manual",
@@ -87,6 +89,7 @@ function ProjectDetail() {
       toast.success("Note added");
       setOpenAdd(false); setNoteTitle(""); setNoteContent("");
       qc.invalidateQueries({ queryKey: ["notes", projectId] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -96,7 +99,13 @@ function ProjectDetail() {
       const { error } = await supabase.from("meeting_notes").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notes", projectId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["notes", projectId] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
+      qc.invalidateQueries({ queryKey: ["decision-projects"] });
+      qc.invalidateQueries({ queryKey: ["project-decisions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   const generate = useMutation({
@@ -111,6 +120,7 @@ function ProjectDetail() {
         return;
       }
       toast.success("PRD generated");
+      setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["prds", projectId] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       navigate({ to: "/projects/$projectId/prd/$prdId", params: { projectId, prdId: res.prdId } });
@@ -119,8 +129,8 @@ function ProjectDetail() {
   });
 
   const driveDocs = useQuery({
-    queryKey: ["drive-docs", project?.drive_folder_id],
-    queryFn: () => listDocsFn({ data: { folderId: project!.drive_folder_id! } }),
+    queryKey: ["drive-docs", projectId, project?.drive_folder_id],
+    queryFn: () => listDocsFn({ data: { folderId: project!.drive_folder_id!, projectId } }),
     enabled: openImport && !!project?.drive_folder_id,
   });
 
@@ -135,6 +145,7 @@ function ProjectDetail() {
       setOpenImport(false);
       setPickedDocs(new Set());
       qc.invalidateQueries({ queryKey: ["notes", projectId] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

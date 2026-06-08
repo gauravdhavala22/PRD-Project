@@ -77,14 +77,28 @@ export const listDriveFolders = createServerFn({ method: "POST" })
     return { folders: json.files ?? [], notConnected: false as const };
   });
 
-/** List Google Docs inside a Drive folder. */
+/** List Google Docs inside a Drive folder linked to a user-owned project. */
 export const listDocsInFolder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ folderId: z.string().min(1).max(200) }).parse(input),
+    z.object({
+      folderId: z.string().min(1).max(200),
+      projectId: z.string().uuid(),
+    }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase } = context;
+
+    // Verify the folderId actually belongs to a project owned by the caller (RLS scopes to user).
+    const { data: project, error: projErr } = await supabase
+      .from("projects")
+      .select("id, drive_folder_id")
+      .eq("id", data.projectId)
+      .single();
+    if (projErr || !project) throw new Error("Project not found");
+    if (project.drive_folder_id !== data.folderId) {
+      throw new Error("Folder is not linked to this project");
+    }
 
     const safeId = data.folderId.replace(/['\\]/g, "");
     const q = encodeURIComponent(
@@ -145,41 +159,34 @@ export const importDriveDocs = createServerFn({ method: "POST" })
       return { imported: 0, skipped: data.docs.length };
     }
 
-    const rows: Array<{
-      project_id: string;
-      user_id: string;
-      google_doc_id: string;
-      title: string;
-      content: string;
-      source: string;
-      doc_modified_at: string | null;
-    }> = [];
-
-    for (const doc of toFetch) {
-      const res = await driveGet(null,
-        `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
-      );
-      if (!res.ok) {
-        throw new Error(
-          `Failed to export "${doc.name}" (${res.status}): ${await res.text()}`,
+    // Fetch doc bodies in parallel (capped concurrency via Promise.all on small batch ≤25).
+    const fetched = await Promise.all(
+      toFetch.map(async (doc) => {
+        const res = await driveGet(null,
+          `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
         );
-      }
-      const text = await res.text();
-      rows.push({
-        project_id: data.projectId,
-        user_id: userId,
-        google_doc_id: doc.id,
-        title: doc.name,
-        content: text,
-        source: "google_drive",
-        doc_modified_at: doc.modifiedTime ?? null,
-      });
-    }
+        if (!res.ok) {
+          throw new Error(
+            `Failed to export "${doc.name}" (${res.status}): ${await res.text()}`,
+          );
+        }
+        const text = await res.text();
+        return {
+          project_id: data.projectId,
+          user_id: userId,
+          google_doc_id: doc.id,
+          title: doc.name,
+          content: text,
+          source: "google_drive",
+          doc_modified_at: doc.modifiedTime ?? null,
+        };
+      }),
+    );
 
-    const { error: insErr } = await supabase.from("meeting_notes").insert(rows);
+    const { error: insErr } = await supabase.from("meeting_notes").insert(fetched);
     if (insErr) throw new Error(insErr.message);
 
-    return { imported: rows.length, skipped: data.docs.length - rows.length };
+    return { imported: fetched.length, skipped: data.docs.length - fetched.length };
   });
 
 const DecisionExtractionSchema = z.object({
@@ -310,62 +317,67 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
       const docs = listJson.files ?? [];
       if (docs.length === 0) return { notesImported, decisionsCreated, errors };
 
-      const { data: existing } = await supabase
-        .from("meeting_notes")
-        .select("google_doc_id")
-        .eq("project_id", project.id)
-        .in("google_doc_id", docs.map((d) => d.id));
+      const { data: existing } = docs.length
+        ? await supabase
+            .from("meeting_notes")
+            .select("google_doc_id")
+            .eq("project_id", project.id)
+            .in("google_doc_id", docs.map((d) => d.id))
+        : { data: [] as Array<{ google_doc_id: string | null }> };
       const existingIds = new Set((existing ?? []).map((r) => r.google_doc_id));
       const toFetch = docs.filter((d) => !existingIds.has(d.id));
 
-      for (const doc of toFetch) {
-        const exportRes = await driveGet(null,
-          `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
-        );
-        if (!exportRes.ok) {
-          errors.push(`${doc.name}: export failed (${exportRes.status})`);
-          continue;
-        }
-        const content = await exportRes.text();
-        const { data: inserted, error: insErr } = await supabase
-          .from("meeting_notes")
-          .insert({
-            project_id: project.id,
-            user_id: userId,
-            google_doc_id: doc.id,
-            title: doc.name,
-            content,
-            source: "google_drive",
-            doc_modified_at: doc.modifiedTime ?? null,
-          })
-          .select("id")
-          .single();
-        if (insErr || !inserted) {
-          errors.push(`${doc.name}: ${insErr?.message ?? "insert failed"}`);
-          continue;
-        }
-        notesImported += 1;
-
-        const decisions = await extractDecisionsFromNote(apiKey, doc.name, content);
-        if (decisions.length > 0) {
-          const rows = decisions.map((d) => ({
-            project_id: project.id,
-            user_id: userId,
-            meeting_note_id: inserted.id,
-            title: d.title,
-            description: d.description,
-            decision_date: d.decision_date,
-            confidence: d.confidence,
-            status: "pending",
-          }));
-          const { error: decErr } = await supabase.from("decisions").insert(rows);
-          if (decErr) {
-            errors.push(`${doc.name}: decisions ${decErr.message}`);
-          } else {
-            decisionsCreated += decisions.length;
+      // Process docs in parallel (Drive QPS is high enough for typical folder sizes).
+      await Promise.all(
+        toFetch.map(async (doc) => {
+          const exportRes = await driveGet(null,
+            `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
+          );
+          if (!exportRes.ok) {
+            errors.push(`${doc.name}: export failed (${exportRes.status})`);
+            return;
           }
-        }
-      }
+          const content = await exportRes.text();
+          const { data: inserted, error: insErr } = await supabase
+            .from("meeting_notes")
+            .insert({
+              project_id: project.id,
+              user_id: userId,
+              google_doc_id: doc.id,
+              title: doc.name,
+              content,
+              source: "google_drive",
+              doc_modified_at: doc.modifiedTime ?? null,
+            })
+            .select("id")
+            .single();
+          if (insErr || !inserted) {
+            errors.push(`${doc.name}: ${insErr?.message ?? "insert failed"}`);
+            return;
+          }
+          notesImported += 1;
+
+          const decisions = await extractDecisionsFromNote(apiKey, doc.name, content);
+          if (decisions.length > 0) {
+            const rows = decisions.map((d) => ({
+              project_id: project.id,
+              user_id: userId,
+              meeting_note_id: inserted.id,
+              title: d.title,
+              description: d.description,
+              decision_date: d.decision_date,
+              confidence: d.confidence,
+              status: "pending",
+            }));
+            const { error: decErr } = await supabase.from("decisions").insert(rows);
+            if (decErr) {
+              errors.push(`${doc.name}: decisions ${decErr.message}`);
+            } else {
+              decisionsCreated += decisions.length;
+            }
+          }
+        }),
+      );
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));
     }

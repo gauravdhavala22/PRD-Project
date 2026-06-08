@@ -19,6 +19,15 @@ import { Plus, FolderKanban, Folder, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { listDriveFolders } from "@/lib/drive.functions";
 
+const GRADIENTS = [
+  "from-indigo-400 to-violet-400",
+  "from-sky-400 to-cyan-400",
+  "from-amber-400 to-rose-400",
+  "from-emerald-400 to-teal-400",
+  "from-fuchsia-400 to-pink-400",
+  "from-violet-400 to-purple-400",
+];
+
 export const Route = createFileRoute("/_authenticated/projects/")({
   component: ProjectsPage,
 });
@@ -44,6 +53,11 @@ function ProjectsPage() {
       toast.success("Project deleted");
       setDeleteId(null);
       qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["projects-options"] });
+      qc.invalidateQueries({ queryKey: ["decision-projects"] });
+      qc.invalidateQueries({ queryKey: ["project-decisions"] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -68,10 +82,11 @@ function ProjectsPage() {
 
   const createProject = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
+      const { data: s } = await supabase.auth.getSession();
+      const uid = s.session?.user.id;
+      if (!uid) throw new Error("Not signed in");
       const { error } = await supabase.from("projects").insert({
-        user_id: u.user.id,
+        user_id: uid,
         name: name.trim(),
         description: description.trim() || null,
         drive_folder_id: folderId,
@@ -84,6 +99,8 @@ function ProjectsPage() {
       setOpen(false);
       setName(""); setDescription(""); setFolderId(null); setFolderName(null); setSearch("");
       qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["projects-options"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -182,15 +199,7 @@ function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects?.map((p, i) => {
-            const gradients = [
-              "from-indigo-400 to-violet-400",
-              "from-sky-400 to-cyan-400",
-              "from-amber-400 to-rose-400",
-              "from-emerald-400 to-teal-400",
-              "from-fuchsia-400 to-pink-400",
-              "from-violet-400 to-purple-400",
-            ];
-            const g = gradients[i % gradients.length];
+            const g = GRADIENTS[i % GRADIENTS.length];
             return (
               <div key={p.id} className="relative group">
                 <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block">

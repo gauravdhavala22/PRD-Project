@@ -22,6 +22,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: drive } = useQuery({
     queryKey: ["drive-connected"],
     queryFn: () => checkDrive(),
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const handleLogout = async () => {

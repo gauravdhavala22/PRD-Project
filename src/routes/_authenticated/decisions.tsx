@@ -54,14 +54,20 @@ type Filters = {
   search: string;
 };
 
+function sanitizeIlike(input: string) {
+  // Strip PostgREST filter delimiters and ilike wildcards so user input
+  // can't broaden the search or break the .or() expression.
+  return input.replace(/[%_\\,():*]/g, " ").trim();
+}
+
 function buildBaseQuery(filters: Filters) {
   let q = supabase.from("decisions").select("*", { count: "exact" }).order("created_at", { ascending: false });
   if (filters.projectId) q = q.eq("project_id", filters.projectId);
   if (filters.status !== "all") q = q.eq("status", filters.status);
   if (filters.category !== "all") q = q.eq("category", filters.category);
   if (filters.search) {
-    const escaped = filters.search.replace(/[%,()]/g, " ");
-    q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+    const escaped = sanitizeIlike(filters.search);
+    if (escaped) q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
   }
   return q;
 }
@@ -101,11 +107,12 @@ function DecisionsPage() {
   const { data: notesMap } = useQuery({
     queryKey: ["notes-titles"],
     queryFn: async () => {
-      const { data } = await supabase.from("meeting_notes").select("id, title");
+      const { data } = await supabase.from("meeting_notes").select("id, title").limit(5000);
       const map: Record<string, string> = {};
       (data ?? []).forEach((n) => { map[n.id] = n.title; });
       return map;
     },
+    staleTime: 60_000,
   });
 
   // Lightweight query: project_ids matching filters, used to build groups + counts.
@@ -117,8 +124,8 @@ function DecisionsPage() {
       if (filter !== "all") q = q.eq("status", filter);
       if (categoryFilter !== "all") q = q.eq("category", categoryFilter);
       if (debouncedSearch) {
-        const escaped = debouncedSearch.replace(/[%,()]/g, " ");
-        q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+        const escaped = sanitizeIlike(debouncedSearch);
+        if (escaped) q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
       }
       const { data, error } = await q.limit(10000);
       if (error) throw error;
@@ -183,18 +190,28 @@ function DecisionsPage() {
   const sync = useMutation({
     mutationFn: async () => {
       const { projects: list } = await listProjectsFn({ data: undefined as never });
+      const results = await Promise.all(
+        list.map(async (p) => {
+          try {
+            const res = await syncOneFn({ data: { projectId: p.id } });
+            return { p, res, err: null as string | null };
+          } catch (err) {
+            return {
+              p,
+              res: { notesImported: 0, decisionsCreated: 0, errors: [] as string[] },
+              err: err instanceof Error ? err.message : String(err),
+            };
+          }
+        }),
+      );
       let notesImported = 0;
       let decisionsCreated = 0;
       const errors: string[] = [];
-      for (const p of list) {
-        try {
-          const res = await syncOneFn({ data: { projectId: p.id } });
-          notesImported += res.notesImported;
-          decisionsCreated += res.decisionsCreated;
-          for (const e of res.errors) errors.push(`${p.name}: ${e}`);
-        } catch (err) {
-          errors.push(`${p.name}: ${err instanceof Error ? err.message : String(err)}`);
-        }
+      for (const { p, res, err } of results) {
+        notesImported += res.notesImported;
+        decisionsCreated += res.decisionsCreated;
+        for (const e of res.errors) errors.push(`${p.name}: ${e}`);
+        if (err) errors.push(`${p.name}: ${err}`);
       }
       return { projectsScanned: list.length, notesImported, decisionsCreated, errors };
     },
@@ -502,18 +519,19 @@ function ProjectGroup({
 
   // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = infinite;
   useEffect(() => {
     if (!isOpen) return;
     const el = sentinelRef.current;
     if (!el) return;
     const obs = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && infinite.hasNextPage && !infinite.isFetchingNextPage) {
-        infinite.fetchNextPage();
+      if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
       }
     }, { rootMargin: "200px" });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [isOpen, infinite.hasNextPage, infinite.isFetchingNextPage, infinite]);
+  }, [isOpen, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
@@ -571,7 +589,7 @@ function ProjectGroup({
                   Load more
                 </Button>
               )}
-              {!infinite.hasNextPage && rows.length > 0 && rows.length >= PAGE_SIZE && (
+              {!infinite.hasNextPage && rows.length > 0 && (
                 <span>All {rows.length} loaded</span>
               )}
             </div>
