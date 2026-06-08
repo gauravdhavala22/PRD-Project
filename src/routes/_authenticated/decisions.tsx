@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Check, Pencil, Trash2, Download, RefreshCw, Search, ChevronDown, ChevronRight, FolderOpen } from "lucide-react";
+import { Check, Pencil, Trash2, Download, RefreshCw, Search, ChevronDown, ChevronRight, FolderOpen, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { listSyncableProjects, syncProjectDrive } from "@/lib/drive.functions";
@@ -36,6 +36,8 @@ type Decision = {
   meeting_note_id: string | null;
 };
 
+const PAGE_SIZE = 10;
+
 const CATEGORIES = ["Product & Business", "Technical", "Process", "Uncategorized"] as const;
 const CATEGORY_STYLES: Record<string, string> = {
   "Product & Business": "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
@@ -43,6 +45,25 @@ const CATEGORY_STYLES: Record<string, string> = {
   Process: "bg-emerald-100 text-emerald-700 border-emerald-200",
   Uncategorized: "bg-muted text-muted-foreground",
 };
+
+type Filters = {
+  projectId?: string;
+  status: string;
+  category: string;
+  search: string;
+};
+
+function buildBaseQuery(filters: Filters) {
+  let q = supabase.from("decisions").select("*", { count: "exact" }).order("created_at", { ascending: false });
+  if (filters.projectId) q = q.eq("project_id", filters.projectId);
+  if (filters.status !== "all") q = q.eq("status", filters.status);
+  if (filters.category !== "all") q = q.eq("category", filters.category);
+  if (filters.search) {
+    const escaped = filters.search.replace(/[%,()]/g, " ");
+    q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+  }
+  return q;
+}
 
 export const Route = createFileRoute("/_authenticated/decisions")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -66,6 +87,8 @@ function DecisionsPage() {
   const [selected, setSelected] = useState<Decision | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
+  const filters: Filters = { projectId, status: filter, category: categoryFilter, search: debouncedSearch };
+
   const { data: projects } = useQuery({
     queryKey: ["projects-options"],
     queryFn: async () => {
@@ -84,10 +107,11 @@ function DecisionsPage() {
     },
   });
 
-  const { data: decisions } = useQuery({
-    queryKey: ["decisions", projectId, filter, categoryFilter, debouncedSearch],
+  // Lightweight query: project_ids matching filters, used to build groups + counts.
+  const { data: projectGroups } = useQuery({
+    queryKey: ["decision-projects", projectId, filter, categoryFilter, debouncedSearch],
     queryFn: async () => {
-      let q = supabase.from("decisions").select("*").order("created_at", { ascending: false });
+      let q = supabase.from("decisions").select("project_id");
       if (projectId) q = q.eq("project_id", projectId);
       if (filter !== "all") q = q.eq("status", filter);
       if (categoryFilter !== "all") q = q.eq("category", categoryFilter);
@@ -95,9 +119,13 @@ function DecisionsPage() {
         const escaped = debouncedSearch.replace(/[%,()]/g, " ");
         q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
       }
-      const { data, error } = await q;
+      const { data, error } = await q.limit(10000);
       if (error) throw error;
-      return data as Decision[];
+      const counts: Record<string, number> = {};
+      (data ?? []).forEach((row: { project_id: string }) => {
+        counts[row.project_id] = (counts[row.project_id] ?? 0) + 1;
+      });
+      return counts;
     },
   });
 
@@ -107,7 +135,8 @@ function DecisionsPage() {
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["decisions"] });
+      qc.invalidateQueries({ queryKey: ["decision-projects"] });
+      qc.invalidateQueries({ queryKey: ["project-decisions"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       setEditing(null);
       setSelected((s) => (s && s.id === vars.id ? { ...s, ...vars } as Decision : s));
@@ -121,7 +150,8 @@ function DecisionsPage() {
       if (error) throw error;
     },
     onSuccess: (_d, id) => {
-      qc.invalidateQueries({ queryKey: ["decisions"] });
+      qc.invalidateQueries({ queryKey: ["decision-projects"] });
+      qc.invalidateQueries({ queryKey: ["project-decisions"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       setSelected((s) => (s && s.id === id ? null : s));
       toast.success("Decision deleted");
@@ -135,17 +165,17 @@ function DecisionsPage() {
     return m;
   }, [projects]);
 
-  const filtered = decisions ?? [];
-
   const grouped = useMemo(() => {
-    const groups: Record<string, Decision[]> = {};
-    filtered.forEach((d) => {
-      (groups[d.project_id] ||= []).push(d);
-    });
-    return Object.entries(groups).sort(([a], [b]) =>
+    const entries = Object.entries(projectGroups ?? {});
+    return entries.sort(([a], [b]) =>
       (projectNameMap[a] ?? "").localeCompare(projectNameMap[b] ?? ""),
     );
-  }, [filtered, projectNameMap]);
+  }, [projectGroups, projectNameMap]);
+
+  const totalDecisions = useMemo(
+    () => grouped.reduce((sum, [, n]) => sum + n, 0),
+    [grouped],
+  );
 
   const listProjectsFn = useServerFn(listSyncableProjects);
   const syncOneFn = useServerFn(syncProjectDrive);
@@ -168,7 +198,8 @@ function DecisionsPage() {
       return { projectsScanned: list.length, notesImported, decisionsCreated, errors };
     },
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["decisions"] });
+      qc.invalidateQueries({ queryKey: ["decision-projects"] });
+      qc.invalidateQueries({ queryKey: ["project-decisions"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       qc.invalidateQueries({ queryKey: ["notes-titles"] });
       const parts = [
@@ -184,8 +215,14 @@ function DecisionsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const downloadCsv = () => {
-    if (!filtered || filtered.length === 0) {
+  const downloadCsv = async () => {
+    const { data, error } = await buildBaseQuery(filters).limit(10000);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const rowsData = (data ?? []) as Decision[];
+    if (rowsData.length === 0) {
       toast.error("No decisions to export");
       return;
     }
@@ -194,7 +231,7 @@ function DecisionsPage() {
       const s = v == null ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const rows = filtered.map((d) => [
+    const rows = rowsData.map((d) => [
       projectNameMap[d.project_id] ?? "",
       d.title,
       d.description,
@@ -287,9 +324,9 @@ function DecisionsPage() {
             </Button>
           )}
         </div>
-        {filtered.length > 0 && (
+        {totalDecisions > 0 && (
           <p className="text-xs text-muted-foreground mt-2">
-            {filtered.length} decision{filtered.length === 1 ? "" : "s"} across {grouped.length} project{grouped.length === 1 ? "" : "s"}
+            {totalDecisions} decision{totalDecisions === 1 ? "" : "s"} across {grouped.length} project{grouped.length === 1 ? "" : "s"}
           </p>
         )}
       </div>
@@ -297,69 +334,41 @@ function DecisionsPage() {
       {/* Project jump-chips */}
       {grouped.length > 1 && (
         <div className="flex flex-wrap gap-1.5 mb-4">
-          {grouped.map(([pid, list]) => (
+          {grouped.map(([pid, count]) => (
             <a
               key={pid}
               href={`#proj-${pid}`}
               className="text-xs px-2.5 py-1 rounded-full border bg-muted/40 hover:bg-muted transition"
             >
-              {projectNameMap[pid] ?? "Untitled"} <span className="text-muted-foreground">· {list.length}</span>
+              {projectNameMap[pid] ?? "Untitled"} <span className="text-muted-foreground">· {count}</span>
             </a>
           ))}
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {grouped.length === 0 ? (
         <Card><CardContent className="py-16 text-center text-sm text-muted-foreground">
-          {decisions && decisions.length === 0
-            ? "No decisions yet. Generate a PRD to extract decisions from your notes."
-            : "No decisions match your search."}
+          {projectGroups && Object.keys(projectGroups).length === 0
+            ? (debouncedSearch || filter !== "all" || categoryFilter !== "all"
+                ? "No decisions match your search."
+                : "No decisions yet. Generate a PRD to extract decisions from your notes.")
+            : "Loading…"}
         </CardContent></Card>
       ) : (
         <div className="space-y-4">
-          {grouped.map(([pid, list]) => {
-            const isOpen = !collapsed[pid];
-            return (
-              <Collapsible key={pid} open={isOpen} onOpenChange={() => toggleGroup(pid)}>
-                <div id={`proj-${pid}`} className="scroll-mt-24">
-                  <CollapsibleTrigger className="w-full flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted/50 transition group">
-                    {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                    <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-sm">{projectNameMap[pid] ?? "Untitled project"}</span>
-                    <Badge variant="secondary" className="ml-1">{list.length}</Badge>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="mt-2 space-y-2 pl-2 border-l-2 border-muted ml-2">
-                      {list.map((d) => (
-                        <button
-                          key={d.id}
-                          onClick={() => setSelected(d)}
-                          className={`w-full text-left rounded-md border bg-card hover:border-primary/50 hover:shadow-sm transition p-3 ${
-                            selected?.id === d.id ? "border-primary ring-1 ring-primary/20" : ""
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-sm truncate">{d.title}</div>
-                              <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{d.description}</p>
-                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                <Badge variant="outline" className={`text-[10px] ${CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}`}>
-                                  {d.category || "Uncategorized"}
-                                </Badge>
-                                <Badge variant={d.status === "approved" ? "default" : "secondary"} className="text-[10px]">{d.status}</Badge>
-                                <Badge variant="outline" className="text-[10px]">conf {(d.confidence * 100).toFixed(0)}%</Badge>
-                                {d.decision_date && <Badge variant="outline" className="text-[10px]">{d.decision_date}</Badge>}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-            );
-          })}
+          {grouped.map(([pid, count]) => (
+            <ProjectGroup
+              key={pid}
+              projectId={pid}
+              projectName={projectNameMap[pid] ?? "Untitled project"}
+              total={count}
+              filters={filters}
+              isOpen={!collapsed[pid]}
+              onToggle={() => toggleGroup(pid)}
+              selectedId={selected?.id}
+              onSelect={setSelected}
+            />
+          ))}
         </div>
       )}
 
@@ -452,5 +461,114 @@ function DecisionsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function ProjectGroup({
+  projectId, projectName, total, filters, isOpen, onToggle, selectedId, onSelect,
+}: {
+  projectId: string;
+  projectName: string;
+  total: number;
+  filters: Filters;
+  isOpen: boolean;
+  onToggle: () => void;
+  selectedId?: string;
+  onSelect: (d: Decision) => void;
+}) {
+  const groupFilters: Filters = { ...filters, projectId };
+  const infinite = useInfiniteQuery({
+    queryKey: ["project-decisions", projectId, filters.status, filters.category, filters.search],
+    enabled: isOpen,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const from = (pageParam as number) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error } = await buildBaseQuery(groupFilters).range(from, to);
+      if (error) throw error;
+      return (data ?? []) as Decision[];
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < PAGE_SIZE) return undefined;
+      return allPages.length;
+    },
+  });
+
+  const rows = useMemo(
+    () => (infinite.data?.pages ?? []).flat(),
+    [infinite.data],
+  );
+
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && infinite.hasNextPage && !infinite.isFetchingNextPage) {
+        infinite.fetchNextPage();
+      }
+    }, { rootMargin: "200px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [isOpen, infinite.hasNextPage, infinite.isFetchingNextPage, infinite]);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={onToggle}>
+      <div id={`proj-${projectId}`} className="scroll-mt-24">
+        <CollapsibleTrigger className="w-full flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted/50 transition group">
+          {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          <FolderOpen className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium text-sm">{projectName}</span>
+          <Badge variant="secondary" className="ml-1">{total}</Badge>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="mt-2 space-y-2 pl-2 border-l-2 border-muted ml-2 max-h-[520px] overflow-y-auto pr-2">
+            {rows.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => onSelect(d)}
+                className={`w-full text-left rounded-md border bg-card hover:border-primary/50 hover:shadow-sm transition p-3 ${
+                  selectedId === d.id ? "border-primary ring-1 ring-primary/20" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">{d.title}</div>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{d.description}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <Badge variant="outline" className={`text-[10px] ${CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}`}>
+                        {d.category || "Uncategorized"}
+                      </Badge>
+                      <Badge variant={d.status === "approved" ? "default" : "secondary"} className="text-[10px]">{d.status}</Badge>
+                      <Badge variant="outline" className="text-[10px]">conf {(d.confidence * 100).toFixed(0)}%</Badge>
+                      {d.decision_date && <Badge variant="outline" className="text-[10px]">{d.decision_date}</Badge>}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+
+            {/* Sentinel + status */}
+            <div ref={sentinelRef} className="py-2 text-center text-xs text-muted-foreground">
+              {infinite.isFetching && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                </span>
+              )}
+              {!infinite.isFetching && infinite.hasNextPage && (
+                <Button size="sm" variant="ghost" onClick={() => infinite.fetchNextPage()}>
+                  Load more
+                </Button>
+              )}
+              {!infinite.hasNextPage && rows.length > 0 && rows.length >= PAGE_SIZE && (
+                <span>All {rows.length} loaded</span>
+              )}
+            </div>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }
