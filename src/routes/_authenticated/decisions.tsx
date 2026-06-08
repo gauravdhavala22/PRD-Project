@@ -29,6 +29,7 @@ type Decision = {
   title: string;
   description: string;
   decision_date: string | null;
+  created_at: string;
   confidence: number;
   status: string;
   category: string;
@@ -525,30 +526,38 @@ function ProjectGroup({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="mt-2 space-y-2 pl-2 border-l-2 border-muted ml-2 max-h-[520px] overflow-y-auto pr-2">
-            {rows.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => onSelect(d)}
-                className={`w-full text-left rounded-md border bg-card hover:border-primary/50 hover:shadow-sm transition p-3 ${
-                  selectedId === d.id ? "border-primary ring-1 ring-primary/20" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm truncate">{d.title}</div>
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{d.description}</p>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      <Badge variant="outline" className={`text-[10px] ${CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}`}>
-                        {d.category || "Uncategorized"}
-                      </Badge>
-                      <Badge variant={d.status === "approved" ? "default" : "secondary"} className="text-[10px]">{d.status}</Badge>
-                      <Badge variant="outline" className="text-[10px]">conf {(d.confidence * 100).toFixed(0)}%</Badge>
-                      {d.decision_date && <Badge variant="outline" className="text-[10px]">{d.decision_date}</Badge>}
+            {rows.map((d) => {
+              const dateValue = d.decision_date ?? d.created_at.slice(0, 10);
+              const dateLabel = d.decision_date ? new Date(d.decision_date).toLocaleDateString() : new Date(d.created_at).toLocaleDateString();
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => onSelect(d)}
+                  className={`w-full text-left rounded-md border bg-card hover:border-primary/50 hover:shadow-sm transition p-3 ${
+                    selectedId === d.id ? "border-primary ring-1 ring-primary/20" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-medium text-sm truncate">{d.title}</div>
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0" title={dateValue}>
+                          {dateLabel}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{d.description}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <Badge variant="outline" className={`text-[10px] ${CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}`}>
+                          {d.category || "Uncategorized"}
+                        </Badge>
+                        <Badge variant={d.status === "approved" ? "default" : "secondary"} className="text-[10px]">{d.status}</Badge>
+                        <Badge variant="outline" className="text-[10px]">conf {(d.confidence * 100).toFixed(0)}%</Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
 
             {/* Sentinel + status */}
             <div ref={sentinelRef} className="py-2 text-center text-xs text-muted-foreground">
