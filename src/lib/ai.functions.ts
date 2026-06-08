@@ -131,7 +131,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
         output = normalizeExtraction(RawExtractionSchema.parse(parseJsonObject(text)));
       } catch (fallbackError) {
         console.error("PRD extraction retry failed", fallbackError);
-        return { prdId: null, decisionsCount: 0, error: "I couldn't turn these notes into a PRD yet. Try selecting fewer or more detailed notes." };
+        return { prdId: null, error: "I couldn't turn these notes into a PRD yet. Try selecting fewer or more detailed notes." };
       }
     }
 
