@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,13 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Pencil, Trash2, Download, RefreshCw } from "lucide-react";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Check, Pencil, Trash2, Download, RefreshCw, Search, ChevronDown, ChevronRight, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { listSyncableProjects, syncProjectDrive } from "@/lib/drive.functions";
@@ -50,7 +56,10 @@ function DecisionsPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Decision | null>(null);
+  const [selected, setSelected] = useState<Decision | null>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const { data: projects } = useQuery({
     queryKey: ["projects-options"],
@@ -88,10 +97,11 @@ function DecisionsPage() {
       const { error } = await supabase.from("decisions").update(d).eq("id", d.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["decisions"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       setEditing(null);
+      setSelected((s) => (s && s.id === vars.id ? { ...s, ...vars } as Decision : s));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -101,14 +111,39 @@ function DecisionsPage() {
       const { error } = await supabase.from("decisions").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_d, id) => {
       qc.invalidateQueries({ queryKey: ["decisions"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      setSelected((s) => (s && s.id === id ? null : s));
       toast.success("Decision deleted");
     },
   });
 
   const projectName = projects?.find((p) => p.id === projectId)?.name;
+  const projectNameMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    (projects ?? []).forEach((p) => { m[p.id] = p.name; });
+    return m;
+  }, [projects]);
+
+  const filtered = useMemo(() => {
+    if (!decisions) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return decisions;
+    return decisions.filter((d) =>
+      d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q),
+    );
+  }, [decisions, search]);
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, Decision[]> = {};
+    filtered.forEach((d) => {
+      (groups[d.project_id] ||= []).push(d);
+    });
+    return Object.entries(groups).sort(([a], [b]) =>
+      (projectNameMap[a] ?? "").localeCompare(projectNameMap[b] ?? ""),
+    );
+  }, [filtered, projectNameMap]);
 
   const listProjectsFn = useServerFn(listSyncableProjects);
   const syncOneFn = useServerFn(syncProjectDrive);
@@ -148,16 +183,17 @@ function DecisionsPage() {
   });
 
   const downloadCsv = () => {
-    if (!decisions || decisions.length === 0) {
+    if (!filtered || filtered.length === 0) {
       toast.error("No decisions to export");
       return;
     }
-    const headers = ["Title", "Description", "Category", "Status", "Confidence", "Decision Date", "Source Note"];
+    const headers = ["Project", "Title", "Description", "Category", "Status", "Confidence", "Decision Date", "Source Note"];
     const escape = (v: unknown) => {
       const s = v == null ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const rows = decisions.map((d) => [
+    const rows = filtered.map((d) => [
+      projectNameMap[d.project_id] ?? "",
       d.title,
       d.description,
       d.category || "Uncategorized",
@@ -176,9 +212,17 @@ function DecisionsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const toggleGroup = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    grouped.forEach(([id]) => { next[id] = true; });
+    setCollapsed(next);
+  };
+  const expandAll = () => setCollapsed({});
+
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-8 max-w-6xl">
+      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-transparent">
             Decision Log
@@ -187,19 +231,29 @@ function DecisionsPage() {
             {projectName ? `Project: ${projectName}` : "All projects"}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => sync.mutate()}
-            disabled={sync.isPending}
-          >
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
             <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
             {sync.isPending ? "Syncing…" : "Sync now"}
           </Button>
           <Button variant="outline" size="sm" onClick={downloadCsv}>
-            <Download className="h-4 w-4 mr-1" /> Download CSV
+            <Download className="h-4 w-4 mr-1" /> CSV
           </Button>
+        </div>
+      </div>
+
+      {/* Sticky toolbar */}
+      <div className="sticky top-0 z-10 -mx-2 px-2 py-3 mb-4 bg-background/80 backdrop-blur border-b">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search title or description…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Category" /></SelectTrigger>
             <SelectContent>
@@ -217,59 +271,142 @@ function DecisionsPage() {
               <SelectItem value="approved">Approved</SelectItem>
             </SelectContent>
           </Select>
+          {grouped.length > 1 && (
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={expandAll}>Expand all</Button>
+              <Button variant="ghost" size="sm" onClick={collapseAll}>Collapse all</Button>
+            </div>
+          )}
         </div>
+        {filtered.length > 0 && (
+          <p className="text-xs text-muted-foreground mt-2">
+            {filtered.length} decision{filtered.length === 1 ? "" : "s"} across {grouped.length} project{grouped.length === 1 ? "" : "s"}
+          </p>
+        )}
       </div>
 
-      {decisions && decisions.length === 0 ? (
-        <Card><CardContent className="py-16 text-center text-sm text-muted-foreground">
-          No decisions yet. Generate a PRD to extract decisions from your notes.
-        </CardContent></Card>
-      ) : (
-        <div className="space-y-3">
-          {decisions?.map((d) => (
-            <Card key={d.id}>
-              <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0">
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="tracking-tight text-lg font-semibold bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-500 bg-clip-text text-slate-700 bg-slate-800">
-                    {d.title}
-                  </CardTitle>
-                  <div className="flex flex-wrap gap-2 mt-1.5">
-                    <Badge variant="outline" className={CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}>
-                      {d.category || "Uncategorized"}
-                    </Badge>
-                    <Badge variant={d.status === "approved" ? "default" : "secondary"}>{d.status}</Badge>
-                    <Badge variant="outline">conf {(d.confidence * 100).toFixed(0)}%</Badge>
-                    {d.decision_date && <Badge variant="outline">{d.decision_date}</Badge>}
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  {d.status !== "approved" && (
-                    <Button size="sm" variant="outline" onClick={() => update.mutate({ id: d.id, status: "approved" })}>
-                      <Check className="h-4 w-4 mr-1" /> Approve
-                    </Button>
-                  )}
-                  <Button size="icon" variant="ghost" onClick={() => setEditing(d)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => remove.mutate(d.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{d.description}</p>
-                {d.meeting_note_id && notesMap?.[d.meeting_note_id] && (
-                  <div className="mt-4 pt-3 border-t flex items-center gap-2">
-                    <Badge variant="outline" className="bg-muted/50">
-                      source: {notesMap[d.meeting_note_id]}
-                    </Badge>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+      {/* Project jump-chips */}
+      {grouped.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {grouped.map(([pid, list]) => (
+            <a
+              key={pid}
+              href={`#proj-${pid}`}
+              className="text-xs px-2.5 py-1 rounded-full border bg-muted/40 hover:bg-muted transition"
+            >
+              {projectNameMap[pid] ?? "Untitled"} <span className="text-muted-foreground">· {list.length}</span>
+            </a>
           ))}
         </div>
       )}
+
+      {filtered.length === 0 ? (
+        <Card><CardContent className="py-16 text-center text-sm text-muted-foreground">
+          {decisions && decisions.length === 0
+            ? "No decisions yet. Generate a PRD to extract decisions from your notes."
+            : "No decisions match your search."}
+        </CardContent></Card>
+      ) : (
+        <div className="space-y-4">
+          {grouped.map(([pid, list]) => {
+            const isOpen = !collapsed[pid];
+            return (
+              <Collapsible key={pid} open={isOpen} onOpenChange={() => toggleGroup(pid)}>
+                <div id={`proj-${pid}`} className="scroll-mt-24">
+                  <CollapsibleTrigger className="w-full flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted/50 transition group">
+                    {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-sm">{projectNameMap[pid] ?? "Untitled project"}</span>
+                    <Badge variant="secondary" className="ml-1">{list.length}</Badge>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2 space-y-2 pl-2 border-l-2 border-muted ml-2">
+                      {list.map((d) => (
+                        <button
+                          key={d.id}
+                          onClick={() => setSelected(d)}
+                          className={`w-full text-left rounded-md border bg-card hover:border-primary/50 hover:shadow-sm transition p-3 ${
+                            selected?.id === d.id ? "border-primary ring-1 ring-primary/20" : ""
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm truncate">{d.title}</div>
+                              <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{d.description}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                <Badge variant="outline" className={`text-[10px] ${CATEGORY_STYLES[d.category] ?? CATEGORY_STYLES.Uncategorized}`}>
+                                  {d.category || "Uncategorized"}
+                                </Badge>
+                                <Badge variant={d.status === "approved" ? "default" : "secondary"} className="text-[10px]">{d.status}</Badge>
+                                <Badge variant="outline" className="text-[10px]">conf {(d.confidence * 100).toFixed(0)}%</Badge>
+                                {d.decision_date && <Badge variant="outline" className="text-[10px]">{d.decision_date}</Badge>}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Detail drawer */}
+      <Sheet open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          {selected && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="pr-6">{selected.title}</SheetTitle>
+                <SheetDescription>
+                  {projectNameMap[selected.project_id] ?? "Untitled project"}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-4 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className={CATEGORY_STYLES[selected.category] ?? CATEGORY_STYLES.Uncategorized}>
+                    {selected.category || "Uncategorized"}
+                  </Badge>
+                  <Badge variant={selected.status === "approved" ? "default" : "secondary"}>{selected.status}</Badge>
+                  <Badge variant="outline">conf {(selected.confidence * 100).toFixed(0)}%</Badge>
+                  {selected.decision_date && <Badge variant="outline">{selected.decision_date}</Badge>}
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Description</h4>
+                  <p className="text-sm whitespace-pre-wrap">{selected.description}</p>
+                </div>
+
+                {selected.meeting_note_id && notesMap?.[selected.meeting_note_id] && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Source</h4>
+                    <Badge variant="outline" className="bg-muted/50">
+                      {notesMap[selected.meeting_note_id]}
+                    </Badge>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-4 border-t">
+                  {selected.status !== "approved" && (
+                    <Button size="sm" onClick={() => update.mutate({ id: selected.id, status: "approved" })}>
+                      <Check className="h-4 w-4 mr-1" /> Approve
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => setEditing(selected)}>
+                    <Pencil className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => remove.mutate(selected.id)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
         <DialogContent>
