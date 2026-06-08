@@ -196,15 +196,7 @@ function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects?.map((p, i) => {
-            const gradients = [
-              "from-indigo-400 to-violet-400",
-              "from-sky-400 to-cyan-400",
-              "from-amber-400 to-rose-400",
-              "from-emerald-400 to-teal-400",
-              "from-fuchsia-400 to-pink-400",
-              "from-violet-400 to-purple-400",
-            ];
-            const g = gradients[i % gradients.length];
+            const g = GRADIENTS[i % GRADIENTS.length];
             return (
               <div key={p.id} className="relative group">
                 <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block">
