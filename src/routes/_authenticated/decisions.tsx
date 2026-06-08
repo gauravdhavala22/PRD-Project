@@ -85,12 +85,16 @@ function DecisionsPage() {
   });
 
   const { data: decisions } = useQuery({
-    queryKey: ["decisions", projectId, filter, categoryFilter],
+    queryKey: ["decisions", projectId, filter, categoryFilter, debouncedSearch],
     queryFn: async () => {
       let q = supabase.from("decisions").select("*").order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
       if (filter !== "all") q = q.eq("status", filter);
       if (categoryFilter !== "all") q = q.eq("category", categoryFilter);
+      if (debouncedSearch) {
+        const escaped = debouncedSearch.replace(/[%,()]/g, " ");
+        q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+      }
       const { data, error } = await q;
       if (error) throw error;
       return data as Decision[];
