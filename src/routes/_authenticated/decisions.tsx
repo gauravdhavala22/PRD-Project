@@ -107,11 +107,12 @@ function DecisionsPage() {
   const { data: notesMap } = useQuery({
     queryKey: ["notes-titles"],
     queryFn: async () => {
-      const { data } = await supabase.from("meeting_notes").select("id, title");
+      const { data } = await supabase.from("meeting_notes").select("id, title").limit(5000);
       const map: Record<string, string> = {};
       (data ?? []).forEach((n) => { map[n.id] = n.title; });
       return map;
     },
+    staleTime: 60_000,
   });
 
   // Lightweight query: project_ids matching filters, used to build groups + counts.
@@ -123,8 +124,8 @@ function DecisionsPage() {
       if (filter !== "all") q = q.eq("status", filter);
       if (categoryFilter !== "all") q = q.eq("category", categoryFilter);
       if (debouncedSearch) {
-        const escaped = debouncedSearch.replace(/[%,()]/g, " ");
-        q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+        const escaped = sanitizeIlike(debouncedSearch);
+        if (escaped) q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
       }
       const { data, error } = await q.limit(10000);
       if (error) throw error;
