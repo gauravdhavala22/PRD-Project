@@ -83,7 +83,19 @@ function PrdViewer() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!content) return <div className="p-8">Loading...</div>;
+  if (!content) {
+    return (
+      <div className="p-8 max-w-4xl space-y-5">
+        <div className="h-6 w-40 rounded bg-muted animate-pulse" />
+        <div className="h-10 w-full rounded bg-muted animate-pulse" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 w-full rounded-md bg-muted/60 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const update = (key: keyof Content, value: string | string[]) =>
     setContent({ ...content, [key]: value } as Content);
