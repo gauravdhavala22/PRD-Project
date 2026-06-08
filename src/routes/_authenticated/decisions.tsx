@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,11 @@ function DecisionsPage() {
   const [filter, setFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   const [editing, setEditing] = useState<Decision | null>(null);
   const [selected, setSelected] = useState<Decision | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -80,12 +85,16 @@ function DecisionsPage() {
   });
 
   const { data: decisions } = useQuery({
-    queryKey: ["decisions", projectId, filter, categoryFilter],
+    queryKey: ["decisions", projectId, filter, categoryFilter, debouncedSearch],
     queryFn: async () => {
       let q = supabase.from("decisions").select("*").order("created_at", { ascending: false });
       if (projectId) q = q.eq("project_id", projectId);
       if (filter !== "all") q = q.eq("status", filter);
       if (categoryFilter !== "all") q = q.eq("category", categoryFilter);
+      if (debouncedSearch) {
+        const escaped = debouncedSearch.replace(/[%,()]/g, " ");
+        q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+      }
       const { data, error } = await q;
       if (error) throw error;
       return data as Decision[];
@@ -126,14 +135,7 @@ function DecisionsPage() {
     return m;
   }, [projects]);
 
-  const filtered = useMemo(() => {
-    if (!decisions) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return decisions;
-    return decisions.filter((d) =>
-      d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q),
-    );
-  }, [decisions, search]);
+  const filtered = decisions ?? [];
 
   const grouped = useMemo(() => {
     const groups: Record<string, Decision[]> = {};
