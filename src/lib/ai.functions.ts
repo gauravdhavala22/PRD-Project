@@ -88,11 +88,13 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       .in("id", data.noteIds);
     if (notesErr || !notes || notes.length === 0) throw new Error("No notes found");
 
+    // Cap per-note content to keep total prompt within model limits.
+    const PER_NOTE_CHAR_CAP = 16000;
     const notesPayload = notes
-      .map(
-        (n) =>
-          `=== NOTE id=${n.id} title="${n.title}" ===\n${n.content || ""}`,
-      )
+      .map((n) => {
+        const body = (n.content || "").slice(0, PER_NOTE_CHAR_CAP);
+        return `=== NOTE id=${n.id} title="${n.title}" ===\n${body}`;
+      })
       .join("\n\n");
 
     const gateway = createLovableAiGatewayProvider(apiKey);
