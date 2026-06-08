@@ -1,12 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HardDrive } from "lucide-react";
 import { toast } from "sonner";
+import { connectAppUser } from "@/integrations/lovable/appUserConnectorClient";
+import { startDriveConnect, saveDriveConnection } from "@/lib/drive-oauth.functions";
+
+const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
 
 export const Route = createFileRoute("/_authenticated/connect-drive")({
   head: () => ({
@@ -18,63 +21,38 @@ export const Route = createFileRoute("/_authenticated/connect-drive")({
   component: ConnectDrivePage,
 });
 
-const DRIVE_SCOPES = "openid email profile https://www.googleapis.com/auth/drive.readonly";
-
 function ConnectDrivePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const start = useServerFn(startDriveConnect);
+  const save = useServerFn(saveDriveConnection);
   const [loading, setLoading] = useState(false);
-
-  // After Google OAuth redirects back here, persist the provider token.
-  useEffect(() => {
-    let cancelled = false;
-    const persistToken = async () => {
-      const { data: sess } = await supabase.auth.getSession();
-      const providerToken = sess.session?.provider_token;
-      const user = sess.session?.user;
-      if (!user || !providerToken || cancelled) return;
-      const { error } = await supabase.from("profiles").upsert({
-        id: user.id,
-        email: user.email,
-        google_provider_token: providerToken,
-      });
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      qc.invalidateQueries({ queryKey: ["drive-connected"] });
-      qc.invalidateQueries({ queryKey: ["drive-folders"] });
-      toast.success("Google Drive connected");
-      navigate({ to: "/dashboard", replace: true });
-    };
-    persistToken();
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") persistToken();
-    });
-    return () => {
-      cancelled = true;
-      sub.subscription.unsubscribe();
-    };
-  }, [navigate, qc]);
-
 
   const handleConnect = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin + "/connect-drive",
-          scopes: DRIVE_SCOPES,
-          queryParams: {
-            access_type: "offline",
-            prompt: "select_account consent",
-            include_granted_scopes: "false",
-          },
-        },
+      const result = await connectAppUser({
+        connectorId: "google",
+        gatewayBaseUrl: GATEWAY_BASE_URL,
+        start: (targetOrigin) =>
+          start({
+            data: {
+              targetOrigin,
+              returnUrl: `${window.location.origin}/connect-drive`,
+            },
+          }),
       });
-      if (error) throw error;
-      return;
+      if (!result.success || !result.connectionId) {
+        toast.error(result.error ?? "Failed to connect Google Drive");
+        return;
+      }
+      const saved = await save({ data: { connectionId: result.connectionId } });
+      qc.invalidateQueries({ queryKey: ["drive-connected"] });
+      qc.invalidateQueries({ queryKey: ["drive-folders"] });
+      toast.success(
+        saved.email ? `Connected to ${saved.email}` : "Google Drive connected",
+      );
+      navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to connect Google Drive");
     } finally {
@@ -95,12 +73,13 @@ function ConnectDrivePage() {
           </div>
           <CardTitle>Connect Google Drive</CardTitle>
           <CardDescription>
-            Connect your Google Drive so we can import meeting notes and turn them into PRDs. You can skip this and do it later.
+            Sign in with Google to give this app read-only access to your own Drive.
+            Each user connects their own account — your files are private to you.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <Button className="w-full" onClick={handleConnect} disabled={loading}>
-            {loading ? "Redirecting…" : "Connect Google Drive"}
+            {loading ? "Connecting…" : "Connect Google Drive"}
           </Button>
           <Button variant="ghost" className="w-full" onClick={handleSkip} disabled={loading}>
             Skip for now
