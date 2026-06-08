@@ -135,14 +135,7 @@ function DecisionsPage() {
     return m;
   }, [projects]);
 
-  const filtered = useMemo(() => {
-    if (!decisions) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return decisions;
-    return decisions.filter((d) =>
-      d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q),
-    );
-  }, [decisions, search]);
+  const filtered = decisions ?? [];
 
   const grouped = useMemo(() => {
     const groups: Record<string, Decision[]> = {};
