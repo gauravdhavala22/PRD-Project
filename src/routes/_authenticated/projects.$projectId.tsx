@@ -144,6 +144,7 @@ function ProjectDetail() {
       setOpenImport(false);
       setPickedDocs(new Set());
       qc.invalidateQueries({ queryKey: ["notes", projectId] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
