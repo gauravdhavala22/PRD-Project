@@ -100,7 +100,6 @@ function ProjectDetail() {
       if (error) throw error;
     },
     onSuccess: () => {
-      setSelected((s) => s); // no-op kept for clarity
       qc.invalidateQueries({ queryKey: ["notes", projectId] });
       qc.invalidateQueries({ queryKey: ["notes-titles"] });
       qc.invalidateQueries({ queryKey: ["decision-projects"] });
