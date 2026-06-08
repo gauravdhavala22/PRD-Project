@@ -271,11 +271,18 @@ function DecisionsPage() {
               <SelectItem value="approved">Approved</SelectItem>
             </SelectContent>
           </Select>
-          {grouped.length > 1 && (
-            <div className="flex gap-1">
-              <Button variant="ghost" size="sm" onClick={expandAll}>Expand all</Button>
-              <Button variant="ghost" size="sm" onClick={collapseAll}>Collapse all</Button>
-            </div>
+          {grouped.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const allCollapsed = grouped.every(([id]) => collapsed[id]);
+                if (allCollapsed) expandAll();
+                else collapseAll();
+              }}
+            >
+              {grouped.every(([id]) => collapsed[id]) ? "Expand all" : "Collapse all"}
+            </Button>
           )}
         </div>
         {filtered.length > 0 && (
