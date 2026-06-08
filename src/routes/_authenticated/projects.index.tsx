@@ -19,6 +19,15 @@ import { Plus, FolderKanban, Folder, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { listDriveFolders } from "@/lib/drive.functions";
 
+const GRADIENTS = [
+  "from-indigo-400 to-violet-400",
+  "from-sky-400 to-cyan-400",
+  "from-amber-400 to-rose-400",
+  "from-emerald-400 to-teal-400",
+  "from-fuchsia-400 to-pink-400",
+  "from-violet-400 to-purple-400",
+];
+
 export const Route = createFileRoute("/_authenticated/projects/")({
   component: ProjectsPage,
 });
@@ -44,6 +53,11 @@ function ProjectsPage() {
       toast.success("Project deleted");
       setDeleteId(null);
       qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["projects-options"] });
+      qc.invalidateQueries({ queryKey: ["decision-projects"] });
+      qc.invalidateQueries({ queryKey: ["project-decisions"] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
