@@ -158,5 +158,5 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       .single();
     if (prdErr || !prd) throw new Error(prdErr?.message || "Failed to save PRD");
 
-    return { prdId: prd.id, decisionsCount: 0, error: null };
+    return { prdId: prd.id, error: null };
   });
