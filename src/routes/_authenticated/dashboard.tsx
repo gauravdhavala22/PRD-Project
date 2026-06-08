@@ -22,6 +22,7 @@ function Dashboard() {
       ]);
       return { projects: projects ?? 0, prds: prds ?? 0, pending: pending ?? 0, recent: recent ?? [] };
     },
+    staleTime: 30_000,
   });
 
   const stats = [
