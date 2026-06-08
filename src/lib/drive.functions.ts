@@ -317,62 +317,67 @@ export const syncProjectDrive = createServerFn({ method: "POST" })
       const docs = listJson.files ?? [];
       if (docs.length === 0) return { notesImported, decisionsCreated, errors };
 
-      const { data: existing } = await supabase
-        .from("meeting_notes")
-        .select("google_doc_id")
-        .eq("project_id", project.id)
-        .in("google_doc_id", docs.map((d) => d.id));
+      const { data: existing } = docs.length
+        ? await supabase
+            .from("meeting_notes")
+            .select("google_doc_id")
+            .eq("project_id", project.id)
+            .in("google_doc_id", docs.map((d) => d.id))
+        : { data: [] as Array<{ google_doc_id: string | null }> };
       const existingIds = new Set((existing ?? []).map((r) => r.google_doc_id));
       const toFetch = docs.filter((d) => !existingIds.has(d.id));
 
-      for (const doc of toFetch) {
-        const exportRes = await driveGet(null,
-          `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
-        );
-        if (!exportRes.ok) {
-          errors.push(`${doc.name}: export failed (${exportRes.status})`);
-          continue;
-        }
-        const content = await exportRes.text();
-        const { data: inserted, error: insErr } = await supabase
-          .from("meeting_notes")
-          .insert({
-            project_id: project.id,
-            user_id: userId,
-            google_doc_id: doc.id,
-            title: doc.name,
-            content,
-            source: "google_drive",
-            doc_modified_at: doc.modifiedTime ?? null,
-          })
-          .select("id")
-          .single();
-        if (insErr || !inserted) {
-          errors.push(`${doc.name}: ${insErr?.message ?? "insert failed"}`);
-          continue;
-        }
-        notesImported += 1;
-
-        const decisions = await extractDecisionsFromNote(apiKey, doc.name, content);
-        if (decisions.length > 0) {
-          const rows = decisions.map((d) => ({
-            project_id: project.id,
-            user_id: userId,
-            meeting_note_id: inserted.id,
-            title: d.title,
-            description: d.description,
-            decision_date: d.decision_date,
-            confidence: d.confidence,
-            status: "pending",
-          }));
-          const { error: decErr } = await supabase.from("decisions").insert(rows);
-          if (decErr) {
-            errors.push(`${doc.name}: decisions ${decErr.message}`);
-          } else {
-            decisionsCreated += decisions.length;
+      // Process docs in parallel (Drive QPS is high enough for typical folder sizes).
+      await Promise.all(
+        toFetch.map(async (doc) => {
+          const exportRes = await driveGet(null,
+            `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
+          );
+          if (!exportRes.ok) {
+            errors.push(`${doc.name}: export failed (${exportRes.status})`);
+            return;
           }
-        }
-      }
+          const content = await exportRes.text();
+          const { data: inserted, error: insErr } = await supabase
+            .from("meeting_notes")
+            .insert({
+              project_id: project.id,
+              user_id: userId,
+              google_doc_id: doc.id,
+              title: doc.name,
+              content,
+              source: "google_drive",
+              doc_modified_at: doc.modifiedTime ?? null,
+            })
+            .select("id")
+            .single();
+          if (insErr || !inserted) {
+            errors.push(`${doc.name}: ${insErr?.message ?? "insert failed"}`);
+            return;
+          }
+          notesImported += 1;
+
+          const decisions = await extractDecisionsFromNote(apiKey, doc.name, content);
+          if (decisions.length > 0) {
+            const rows = decisions.map((d) => ({
+              project_id: project.id,
+              user_id: userId,
+              meeting_note_id: inserted.id,
+              title: d.title,
+              description: d.description,
+              decision_date: d.decision_date,
+              confidence: d.confidence,
+              status: "pending",
+            }));
+            const { error: decErr } = await supabase.from("decisions").insert(rows);
+            if (decErr) {
+              errors.push(`${doc.name}: decisions ${decErr.message}`);
+            } else {
+              decisionsCreated += decisions.length;
+            }
+          }
+        }),
+      );
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));
     }
