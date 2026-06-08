@@ -6,7 +6,7 @@ const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
 const DRIVE_CONNECTOR_ID = "google_drive";
 
 async function getCallerConnectionId(
-  supabase: Awaited<ReturnType<typeof import("@/integrations/supabase/auth-middleware")["requireSupabaseAuth"]["server"]>> extends infer _ ? any : never,
+  supabase: { from: (table: string) => any },
   userId: string,
 ): Promise<string | null> {
   const { data, error } = await supabase
