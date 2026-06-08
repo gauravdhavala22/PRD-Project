@@ -4,15 +4,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
-const DecisionSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
-  decision_date: z.string().optional(),
-  confidence: z.number().optional(),
-  source_note_id: z.string().optional(),
-  category: z.enum(["Product & Business", "Technical", "Process"]),
-});
-
 const RawExtractionSchema = z.object({
   executive_summary: z.unknown().optional(),
   problem_statement: z.unknown().optional(),
@@ -21,7 +12,6 @@ const RawExtractionSchema = z.object({
   risks: z.unknown().optional(),
   assumptions: z.unknown().optional(),
   open_questions: z.unknown().optional(),
-  decisions: z.array(DecisionSchema).optional(),
 });
 
 type Extraction = {
@@ -32,21 +22,6 @@ type Extraction = {
   risks: string[];
   assumptions: string[];
   open_questions: string[];
-  decisions: Array<{
-    title: string;
-    description: string;
-    decision_date?: string;
-    confidence: number;
-    source_note_id: string;
-    category: string;
-  }>;
-};
-
-const ALLOWED_CATEGORIES = ["Product & Business", "Technical", "Process"] as const;
-const normalizeCategory = (value: unknown): string => {
-  const text = toText(value).toLowerCase();
-  const match = ALLOWED_CATEGORIES.find((c) => c.toLowerCase() === text);
-  return match ?? "Uncategorized";
 };
 
 const toText = (value: unknown) => {
@@ -76,23 +51,6 @@ const normalizeExtraction = (raw: z.infer<typeof RawExtractionSchema>): Extracti
   risks: toTextArray(raw.risks),
   assumptions: toTextArray(raw.assumptions),
   open_questions: toTextArray(raw.open_questions),
-  decisions: Array.isArray(raw.decisions)
-    ? raw.decisions.reduce<Extraction["decisions"]>((acc, item) => {
-          const decision = item as Record<string, unknown>;
-          const title = toText(decision.title) || toText(decision.description);
-          if (!title) return acc;
-          const confidence = Number(decision.confidence);
-          acc.push({
-            title,
-            description: toText(decision.description),
-            decision_date: toText(decision.decision_date) || undefined,
-            confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
-            source_note_id: toText(decision.source_note_id),
-            category: normalizeCategory(decision.category),
-          });
-          return acc;
-        }, [])
-    : [],
 });
 
 const parseJsonObject = (text: string) => {
