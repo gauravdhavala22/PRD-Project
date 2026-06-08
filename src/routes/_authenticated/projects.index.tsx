@@ -82,10 +82,11 @@ function ProjectsPage() {
 
   const createProject = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
+      const { data: s } = await supabase.auth.getSession();
+      const uid = s.session?.user.id;
+      if (!uid) throw new Error("Not signed in");
       const { error } = await supabase.from("projects").insert({
-        user_id: u.user.id,
+        user_id: uid,
         name: name.trim(),
         description: description.trim() || null,
         drive_folder_id: folderId,
@@ -98,6 +99,8 @@ function ProjectsPage() {
       setOpen(false);
       setName(""); setDescription(""); setFolderId(null); setFolderName(null); setSearch("");
       qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["projects-options"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
