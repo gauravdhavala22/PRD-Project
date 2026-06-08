@@ -87,6 +87,7 @@ function ProjectDetail() {
       toast.success("Note added");
       setOpenAdd(false); setNoteTitle(""); setNoteContent("");
       qc.invalidateQueries({ queryKey: ["notes", projectId] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -96,7 +97,14 @@ function ProjectDetail() {
       const { error } = await supabase.from("meeting_notes").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notes", projectId] }),
+    onSuccess: () => {
+      setSelected((s) => s); // no-op kept for clarity
+      qc.invalidateQueries({ queryKey: ["notes", projectId] });
+      qc.invalidateQueries({ queryKey: ["notes-titles"] });
+      qc.invalidateQueries({ queryKey: ["decision-projects"] });
+      qc.invalidateQueries({ queryKey: ["project-decisions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
   });
 
   const generate = useMutation({
@@ -111,6 +119,7 @@ function ProjectDetail() {
         return;
       }
       toast.success("PRD generated");
+      setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["prds", projectId] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       navigate({ to: "/projects/$projectId/prd/$prdId", params: { projectId, prdId: res.prdId } });
