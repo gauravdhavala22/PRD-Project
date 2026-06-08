@@ -135,7 +135,8 @@ function RootComponent() {
       };
       persist();
       const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") persist();
+        // Only re-persist on identity transitions; ignore TOKEN_REFRESHED / INITIAL_SESSION noise.
+        if (event === "SIGNED_IN" || event === "USER_UPDATED") persist();
       });
       if (cancelled) sub.subscription.unsubscribe();
     });
