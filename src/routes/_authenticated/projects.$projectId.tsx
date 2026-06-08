@@ -72,11 +72,13 @@ function ProjectDetail() {
 
   const addNote = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
+      // Use cached session (no network) — RLS still enforces user_id = auth.uid().
+      const { data: s } = await supabase.auth.getSession();
+      const uid = s.session?.user.id;
+      if (!uid) throw new Error("Not signed in");
       const { error } = await supabase.from("meeting_notes").insert({
         project_id: projectId,
-        user_id: u.user.id,
+        user_id: uid,
         title: noteTitle.trim(),
         content: noteContent,
         source: "manual",
