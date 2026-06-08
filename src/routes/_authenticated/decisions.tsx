@@ -57,6 +57,11 @@ function DecisionsPage() {
   const [filter, setFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   const [editing, setEditing] = useState<Decision | null>(null);
   const [selected, setSelected] = useState<Decision | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
