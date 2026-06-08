@@ -128,8 +128,8 @@ function ProjectDetail() {
   });
 
   const driveDocs = useQuery({
-    queryKey: ["drive-docs", project?.drive_folder_id],
-    queryFn: () => listDocsFn({ data: { folderId: project!.drive_folder_id! } }),
+    queryKey: ["drive-docs", projectId, project?.drive_folder_id],
+    queryFn: () => listDocsFn({ data: { folderId: project!.drive_folder_id!, projectId } }),
     enabled: openImport && !!project?.drive_folder_id,
   });
 
