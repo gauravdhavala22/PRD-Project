@@ -110,7 +110,7 @@ function ProjectDetail() {
         toast.error(res.error || "PRD generation failed");
         return;
       }
-      toast.success(`PRD generated · ${res.decisionsCount} decision(s) extracted`);
+      toast.success("PRD generated");
       qc.invalidateQueries({ queryKey: ["prds", projectId] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       navigate({ to: "/projects/$projectId/prd/$prdId", params: { projectId, prdId: res.prdId } });
