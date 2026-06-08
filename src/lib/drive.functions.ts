@@ -77,14 +77,28 @@ export const listDriveFolders = createServerFn({ method: "POST" })
     return { folders: json.files ?? [], notConnected: false as const };
   });
 
-/** List Google Docs inside a Drive folder. */
+/** List Google Docs inside a Drive folder linked to a user-owned project. */
 export const listDocsInFolder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ folderId: z.string().min(1).max(200) }).parse(input),
+    z.object({
+      folderId: z.string().min(1).max(200),
+      projectId: z.string().uuid(),
+    }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase } = context;
+
+    // Verify the folderId actually belongs to a project owned by the caller (RLS scopes to user).
+    const { data: project, error: projErr } = await supabase
+      .from("projects")
+      .select("id, drive_folder_id")
+      .eq("id", data.projectId)
+      .single();
+    if (projErr || !project) throw new Error("Project not found");
+    if (project.drive_folder_id !== data.folderId) {
+      throw new Error("Folder is not linked to this project");
+    }
 
     const safeId = data.folderId.replace(/['\\]/g, "");
     const q = encodeURIComponent(
