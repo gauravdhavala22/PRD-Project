@@ -117,34 +117,6 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-  useEffect(() => {
-    // Import lazily to avoid SSR issues with localStorage.
-    let cancelled = false;
-    import("@/integrations/supabase/client").then(({ supabase }) => {
-      const persist = async () => {
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.provider_token;
-        const user = sess.session?.user;
-        if (!user || !token || cancelled) return;
-        await supabase.from("profiles").upsert({
-          id: user.id,
-          email: user.email,
-          google_provider_token: token,
-        });
-        queryClient.invalidateQueries({ queryKey: ["drive-connected"] });
-      };
-      persist();
-      const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-        // Only re-persist on identity transitions; ignore TOKEN_REFRESHED / INITIAL_SESSION noise.
-        if (event === "SIGNED_IN" || event === "USER_UPDATED") persist();
-      });
-      if (cancelled) sub.subscription.unsubscribe();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [queryClient]);
-
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
@@ -153,3 +125,4 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+
