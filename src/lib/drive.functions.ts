@@ -159,41 +159,34 @@ export const importDriveDocs = createServerFn({ method: "POST" })
       return { imported: 0, skipped: data.docs.length };
     }
 
-    const rows: Array<{
-      project_id: string;
-      user_id: string;
-      google_doc_id: string;
-      title: string;
-      content: string;
-      source: string;
-      doc_modified_at: string | null;
-    }> = [];
-
-    for (const doc of toFetch) {
-      const res = await driveGet(null,
-        `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
-      );
-      if (!res.ok) {
-        throw new Error(
-          `Failed to export "${doc.name}" (${res.status}): ${await res.text()}`,
+    // Fetch doc bodies in parallel (capped concurrency via Promise.all on small batch ≤25).
+    const fetched = await Promise.all(
+      toFetch.map(async (doc) => {
+        const res = await driveGet(null,
+          `/files/${encodeURIComponent(doc.id)}/export?mimeType=text/plain`,
         );
-      }
-      const text = await res.text();
-      rows.push({
-        project_id: data.projectId,
-        user_id: userId,
-        google_doc_id: doc.id,
-        title: doc.name,
-        content: text,
-        source: "google_drive",
-        doc_modified_at: doc.modifiedTime ?? null,
-      });
-    }
+        if (!res.ok) {
+          throw new Error(
+            `Failed to export "${doc.name}" (${res.status}): ${await res.text()}`,
+          );
+        }
+        const text = await res.text();
+        return {
+          project_id: data.projectId,
+          user_id: userId,
+          google_doc_id: doc.id,
+          title: doc.name,
+          content: text,
+          source: "google_drive",
+          doc_modified_at: doc.modifiedTime ?? null,
+        };
+      }),
+    );
 
-    const { error: insErr } = await supabase.from("meeting_notes").insert(rows);
+    const { error: insErr } = await supabase.from("meeting_notes").insert(fetched);
     if (insErr) throw new Error(insErr.message);
 
-    return { imported: rows.length, skipped: data.docs.length - rows.length };
+    return { imported: fetched.length, skipped: data.docs.length - fetched.length };
   });
 
 const DecisionExtractionSchema = z.object({
