@@ -54,14 +54,20 @@ type Filters = {
   search: string;
 };
 
+function sanitizeIlike(input: string) {
+  // Strip PostgREST filter delimiters and ilike wildcards so user input
+  // can't broaden the search or break the .or() expression.
+  return input.replace(/[%_\\,():*]/g, " ").trim();
+}
+
 function buildBaseQuery(filters: Filters) {
   let q = supabase.from("decisions").select("*", { count: "exact" }).order("created_at", { ascending: false });
   if (filters.projectId) q = q.eq("project_id", filters.projectId);
   if (filters.status !== "all") q = q.eq("status", filters.status);
   if (filters.category !== "all") q = q.eq("category", filters.category);
   if (filters.search) {
-    const escaped = filters.search.replace(/[%,()]/g, " ");
-    q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+    const escaped = sanitizeIlike(filters.search);
+    if (escaped) q = q.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
   }
   return q;
 }
