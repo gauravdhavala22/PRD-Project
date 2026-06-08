@@ -161,9 +161,6 @@ function ProjectDetail() {
           {project?.description && <p className="text-sm text-muted-foreground mt-1">{project.description}</p>}
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to="/decisions" search={{ projectId } as never}>View decisions</Link>
-          </Button>
           <Button
             onClick={() => generate.mutate()}
             disabled={selected.size === 0 || generate.isPending}
