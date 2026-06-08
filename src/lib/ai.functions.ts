@@ -145,12 +145,8 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       "Notes can arrive in ANY format: bullet points, transcripts, Gemini auto-notes, free prose, fragments, or even just chat logs. " +
       "Infer intent generously — paraphrase, group related ideas, and synthesize when content is implicit. " +
       "Be EXHAUSTIVE: capture every important point, requirement, goal, risk, and assumption present in the notes. Do NOT summarize away or drop details — prefer completeness over brevity. There is no length limit on any field; include as many list items and as much detail as the notes warrant. " +
-      "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, risks, assumptions, open_questions, decisions. " +
-      "Use strings for summaries (write multi-paragraph prose when the notes support it) and arrays of strings for lists (include every distinct item — do not cap the count). If a section has no relevant content, return an empty array or empty string (never null). " +
-      "For every decision include title, description, confidence, source_note_id using the exact id shown in the NOTE header, and category. " +
-      "The category MUST be exactly one of: 'Product & Business' (features, scope, UX, user-facing behavior, pricing, GTM, partnerships, budget, strategy, monetization), 'Technical' (architecture, tools, stack, infra, implementation, data models, security), or 'Process' (timelines, ownership, workflow, meeting cadence, team operations, hiring, release process). Pick the single best fit. " +
-      "Whenever the notes mention specific people tied to a decision (decision-maker, owner, who agreed), include their full names in the description (e.g. 'John Smith decided…', 'Agreed by Jane Doe and Alex Kim'). Use the exact names from the notes; if no person is named, omit names rather than guessing. " +
-      "Omit decision_date entirely if no date is mentioned. Confidence (0-1) reflects how clearly the decision is stated.";
+      "Return a JSON object only, with keys: executive_summary, problem_statement, business_goals, functional_requirements, risks, assumptions, open_questions. " +
+      "Use strings for summaries (write multi-paragraph prose when the notes support it) and arrays of strings for lists (include every distinct item — do not cap the count). If a section has no relevant content, return an empty array or empty string (never null).";
 
     let output: Extraction;
     try {
@@ -159,7 +155,7 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
         schema: RawExtractionSchema,
         maxOutputTokens: 32768,
         system: systemPrompt,
-        prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the most complete and detailed PRD possible plus a full list of decisions. Capture every important point — do not omit details for brevity.`,
+        prompt: `Project: ${project.name}\n\nMeeting notes (varied formats — extract whatever signal you can):\n${notesPayload}\n\nProduce the most complete and detailed PRD possible. Capture every important point — do not omit details for brevity.`,
       });
       output = normalizeExtraction(object);
     } catch (error) {
@@ -202,23 +198,5 @@ export const generatePrdFromNotes = createServerFn({ method: "POST" })
       .single();
     if (prdErr || !prd) throw new Error(prdErr?.message || "Failed to save PRD");
 
-    // Persist decisions
-    if (output.decisions.length > 0) {
-      const decisionRows = output.decisions.map((d) => ({
-        project_id: data.projectId,
-        user_id: userId,
-        meeting_note_id: data.noteIds.includes(d.source_note_id) ? d.source_note_id : null,
-        title: d.title.slice(0, 200),
-        description: d.description,
-        decision_date: d.decision_date && /^\d{4}-\d{2}-\d{2}/.test(d.decision_date)
-          ? d.decision_date.slice(0, 10)
-          : null,
-        confidence: Math.max(0, Math.min(1, d.confidence)),
-        category: d.category,
-        status: "pending",
-      }));
-      await supabase.from("decisions").insert(decisionRows);
-    }
-
-    return { prdId: prd.id, decisionsCount: output.decisions.length, error: null };
+    return { prdId: prd.id, decisionsCount: 0, error: null };
   });
