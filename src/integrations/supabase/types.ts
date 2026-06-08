@@ -167,7 +167,9 @@ export type Database = {
           created_at: string
           email: string | null
           full_name: string | null
-          google_provider_token: string | null
+          google_connection_id: string | null
+          google_email: string | null
+          google_name: string | null
           id: string
           onboarding_completed: boolean
           updated_at: string
@@ -176,7 +178,9 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name?: string | null
-          google_provider_token?: string | null
+          google_connection_id?: string | null
+          google_email?: string | null
+          google_name?: string | null
           id: string
           onboarding_completed?: boolean
           updated_at?: string
@@ -185,7 +189,9 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name?: string | null
-          google_provider_token?: string | null
+          google_connection_id?: string | null
+          google_email?: string | null
+          google_name?: string | null
           id?: string
           onboarding_completed?: boolean
           updated_at?: string
