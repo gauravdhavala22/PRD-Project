@@ -579,7 +579,7 @@ function ProjectGroup({
                   Load more
                 </Button>
               )}
-              {!infinite.hasNextPage && rows.length > 0 && rows.length >= PAGE_SIZE && (
+              {!infinite.hasNextPage && rows.length > 0 && (
                 <span>All {rows.length} loaded</span>
               )}
             </div>
