@@ -29,6 +29,7 @@ type Decision = {
   title: string;
   description: string;
   decision_date: string | null;
+  created_at: string;
   confidence: number;
   status: string;
   category: string;
