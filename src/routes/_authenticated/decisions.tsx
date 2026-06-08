@@ -190,18 +190,28 @@ function DecisionsPage() {
   const sync = useMutation({
     mutationFn: async () => {
       const { projects: list } = await listProjectsFn({ data: undefined as never });
+      const results = await Promise.all(
+        list.map(async (p) => {
+          try {
+            const res = await syncOneFn({ data: { projectId: p.id } });
+            return { p, res, err: null as string | null };
+          } catch (err) {
+            return {
+              p,
+              res: { notesImported: 0, decisionsCreated: 0, errors: [] as string[] },
+              err: err instanceof Error ? err.message : String(err),
+            };
+          }
+        }),
+      );
       let notesImported = 0;
       let decisionsCreated = 0;
       const errors: string[] = [];
-      for (const p of list) {
-        try {
-          const res = await syncOneFn({ data: { projectId: p.id } });
-          notesImported += res.notesImported;
-          decisionsCreated += res.decisionsCreated;
-          for (const e of res.errors) errors.push(`${p.name}: ${e}`);
-        } catch (err) {
-          errors.push(`${p.name}: ${err instanceof Error ? err.message : String(err)}`);
-        }
+      for (const { p, res, err } of results) {
+        notesImported += res.notesImported;
+        decisionsCreated += res.decisionsCreated;
+        for (const e of res.errors) errors.push(`${p.name}: ${e}`);
+        if (err) errors.push(`${p.name}: ${err}`);
       }
       return { projectsScanned: list.length, notesImported, decisionsCreated, errors };
     },
